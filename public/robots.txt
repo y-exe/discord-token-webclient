@@ -1,6 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /client/
-Disallow: /share/
-
-Sitemap: https://discord.yexe.xyz/sitemap.xml
