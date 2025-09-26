@@ -32,20 +32,34 @@ document.addEventListener('DOMContentLoaded', () => {
     applyTheme(savedTheme);
 
     socket.on('connect', () => {
-        const pathParts = window.location.pathname.split('/');
-        currentSessionId = pathParts[2];
-        const initialGuildId = pathParts[3];
-        const initialChannelId = pathParts[4];
-        if (currentSessionId) {
-            socket.emit('authenticate', currentSessionId, (response) => {
-                if (response.success) {
-                    document.getElementById('client-page').style.display = 'block';
-                    currentUser = response.user;
-                    loadClientData(initialGuildId, initialChannelId);
-                } else {
-                    document.body.innerHTML = `<h1>セッションが無効です</h1><p>${response.message || ''}</p>`;
-                }
-            });
+        const redirectPath = sessionStorage.getItem('redirectPath');
+        sessionStorage.removeItem('redirectPath');
+
+        const path = redirectPath || window.location.pathname;
+
+        if (redirectPath) {
+            window.history.replaceState(null, '', redirectPath);
+        }
+        
+        const pathParts = path.split('/');
+
+        const clientIndex = pathParts.indexOf('client');
+        if (clientIndex !== -1 && pathParts.length > clientIndex + 1) {
+            currentSessionId = pathParts[clientIndex + 1];
+            const initialGuildId = pathParts[clientIndex + 2];
+            const initialChannelId = pathParts[clientIndex + 3];
+
+            if (currentSessionId) {
+                socket.emit('authenticate', currentSessionId, (response) => {
+                    if (response.success) {
+                        document.getElementById('client-page').style.display = 'block';
+                        currentUser = response.user;
+                        loadClientData(initialGuildId, initialChannelId);
+                    } else {
+                        document.body.innerHTML = `<h1>セッションが無効です</h1><p>${response.message || ''}</p>`;
+                    }
+                });
+            }
         }
     });
 
