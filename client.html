@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Discord Token Client</title> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet"> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"> <link rel="stylesheet" href="style.css"> <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script> <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+</head>
+<body class="full-client-body">
+
+    <div id="client-page" class="full-client-page" style="display: none;">
+        <div class="client-container" id="full-client-container">
+            <div class="sidebar" id="guild-list"></div>
+            <div class="sidebar" id="channel-list-container">
+                <div id="guild-name-container" class="sidebar-header">
+                    <button class="mobile-back-button" id="back-to-guilds"><i class="fas fa-chevron-left"></i></button>
+                    <span id="guild-name-text">サーバーを選択</span>
+                </div>
+                <ul id="channel-list"></ul>
+            </div>
+            <div class="main-content">
+                <header id="channel-header">
+                    <button class="mobile-back-button" id="back-to-channels"><i class="fas fa-chevron-left"></i></button>
+                    <span id="channel-name-text">チャンネルを選択してください</span>
+                </header>
+                <div id="message-list-wrapper">
+                    <div id="welcome-screen" style="display: none;">
+                        <div class="welcome-content">
+                            <h1 id="welcome-user-message"></h1>
+                            <div class="theme-selector-wrapper">
+                                <h3>テーマを選択</h3>
+                                <div class="theme-buttons">
+                                    <button class="theme-btn" data-theme="dark" title="ダーク"></button>
+                                    <button class="theme-btn" data-theme="okinis" title="オキ二ス"></button>
+                                    <button class="theme-btn" data-theme="ash" title="アッシュ"></button>
+                                    <button class="theme-btn" data-theme="white" title="ホワイト"></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="message-list">
+                        <div class="welcome-message">接続中...</div>
+                    </div>
+                </div>
+                <footer class="chat-form-container">
+                    <div id="reply-indicator" style="display: none;">
+                        <div class="reply-indicator-content">
+                            <span>返信先: <span id="reply-to-user"></span></span>
+                            <div class="reply-actions">
+                                <button id="mention-toggle-button" class="mention-button" title="メンションのON/OFF">@</button>
+                                <button id="cancel-reply-button">&times;</button>
+                            </div>
+                        </div>
+                    </div>
+                    <form id="chat-form">
+                        <input type="text" id="message-input" placeholder="メッセージを送信" autocomplete="off" disabled>
+                    </form>
+                </footer>
+            </div>
+        </div>
+    </div>
+    
+    <div id="guild-context-menu" class="context-menu" style="display: none;">
+        <ul><li data-action="move-top">一番上へ移動</li></ul>
+    </div>
+
+    <div id="message-context-menu" class="context-menu" style="display: none;">
+        <ul>
+            <li data-action="reply">返信</li>
+            <li data-action="delete" class="danger-action" style="display: none;">削除</li>
+        </ul>
+    </div>
+    
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="client.js"></script>
+</body>
+</html>
