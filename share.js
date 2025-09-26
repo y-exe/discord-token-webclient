@@ -33,8 +33,26 @@ function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.s
 document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('discord-theme') || 'dark';
     applyTheme(savedTheme);
-    const pathParts = window.location.pathname.split('/');
-    shareId = pathParts[2]; initialGuildId = pathParts[3]; initialChannelId = pathParts[4];
+
+
+    const redirectPath = sessionStorage.getItem('redirectPath');
+    sessionStorage.removeItem('redirectPath');
+
+    const path = redirectPath || window.location.pathname;
+
+    if (redirectPath) {
+        window.history.replaceState(null, '', redirectPath);
+    }
+
+    const pathParts = path.split('/');
+
+    const shareIndex = pathParts.indexOf('share');
+    if (shareIndex !== -1 && pathParts.length > shareIndex + 1) {
+        shareId = pathParts[shareIndex + 1];
+        initialGuildId = pathParts[shareIndex + 2];
+        initialChannelId = pathParts[shareIndex + 3];
+    }
+    
     if (socket.connected) initializeShareSession();
     welcomeScreen.querySelector('.theme-buttons').addEventListener('click', (e) => { if (e.target.classList.contains('theme-btn')) applyTheme(e.target.dataset.theme); });
 });
