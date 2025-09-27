@@ -14,15 +14,10 @@ const shareButton = document.getElementById('share-button');
 const shareModal = document.getElementById('share-modal');
 const shareModalCloseButton = document.getElementById('share-modal-close-button');
 const shareSettingsForm = document.getElementById('share-settings-form');
-const pageHeader = document.getElementById('page-header');
 const termsModal = document.getElementById('terms-modal');
 const termsAgreeButton = document.getElementById('terms-agree-button');
 const invalidateUrlInput = document.getElementById('invalidate-url-input');
 const invalidateLinkButton = document.getElementById('invalidate-link-button');
-const tokenButton = document.getElementById('token-button');
-const detailButton = document.getElementById('detail-button');
-const tokenInputSection = document.getElementById('token-input-section');
-const aboutThisProjectSection = document.getElementById('about-this-project');
 
 const embeddedClient = document.getElementById('embedded-client');
 const guildList = embeddedClient.querySelector('#guild-list');
@@ -44,34 +39,152 @@ const messageContextMenu = document.getElementById('message-context-menu');
 
 let currentSessionId = null; let currentGuildId = null; let currentChannelId = null; let lastMessageAuthorId = null; let currentUser = null; let pendingToken = null; let replyingToMessage = null; let longPressTimer; let isMentionEnabled = false;
 
-function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); document.querySelector(`.theme-btn[data-theme="${theme}"]`)?.classList.add('active'); }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', initializeSite);
+
+function initializeSite() {
+    const lenis = new Lenis({
+        gestureOrientation: 'vertical',
+        wheelEventsTarget: window,
+        content: document.body,
+    });
+    function raf(time) {
+        lenis.raf(time);
+        requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+
+    function setupSplitText() {
+        document.querySelectorAll('[data-split-text]').forEach(el => {
+            if (el.classList.contains('is-ready')) return;
+            el.innerHTML = el.textContent.split('').map((char, i) => {
+                const style = `--char-delay: ${i * 30}ms`;
+                return `<span class="char" style="${style}">${char === ' ' ? '&nbsp;' : char}</span>`;
+            }).join('');
+            el.classList.add('is-ready');
+        });
+    }
+    setupSplitText();
+    
+    const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('is-visible');
+            } else {
+                entry.target.classList.remove('is-visible');
+            }
+        });
+    }, { rootMargin: "0px 0px -10% 0px" });
+
+    document.querySelectorAll('[data-reveal], [data-split-text]').forEach(el => {
+        revealObserver.observe(el);
+    });
+
+    const scrollTrigger = document.getElementById('scroll-trigger');
+    if (scrollTrigger) {
+        const themeObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                const isPastTrigger = entry.boundingClientRect.top < 0 && !entry.isIntersecting;
+                document.body.classList.toggle('theme-alt', isPastTrigger);
+            });
+        }, { root: null, threshold: 0 });
+        themeObserver.observe(scrollTrigger);
+    }
+
     const savedTheme = localStorage.getItem('discord-theme') || 'dark';
     applyTheme(savedTheme);
+    
     socket.on('connect', handlePageLoad);
     if (socket.connected) handlePageLoad();
-    document.querySelector('.theme-buttons')?.addEventListener('click', (e) => { if (e.target.classList.contains('theme-btn')) applyTheme(e.target.dataset.theme); });
-});
+
+    document.querySelector('.theme-buttons')?.addEventListener('click', (e) => { 
+        if (e.target.classList.contains('theme-btn')) applyTheme(e.target.dataset.theme); 
+    });
+
+    loginHistoryContainer.addEventListener('click', (e) => {
+        const deleteButton = e.target.closest('.delete-history-btn');
+        if (deleteButton) {
+            e.stopPropagation();
+            const item = deleteButton.closest('.history-item');
+            if (item) {
+                const userIdToDelete = item.dataset.userid;
+                let history = JSON.parse(localStorage.getItem('discord-client-history') || '[]');
+                history = history.filter(acc => acc.id !== userIdToDelete);
+                localStorage.setItem('discord-client-history', JSON.stringify(history));
+                renderLoginHistory();
+            }
+        } else {
+            const item = e.target.closest('.history-item');
+            if (item) attemptLogin(item.dataset.token);
+        }
+    });
+    
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href');
+            lenis.scrollTo(targetId, {
+                duration: 1.5,
+                easing: (t) => t === 1 ? 1 : 1 - Math.pow(2, -10 * t),
+            });
+        });
+    });
+    termsAgreeButton.addEventListener('click', () => { termsModal.style.display = 'none'; if (pendingToken) { loginButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; loginButton.disabled = true; socket.emit('login', pendingToken); pendingToken = null; } });
+    loginButton.addEventListener('click', () => attemptLogin(tokenInput.value.trim()));
+    chatForm.addEventListener('submit', (e) => { e.preventDefault(); const content = messageInput.value.trim(); if (content && currentChannelId) { socket.emit('sendMessage', { channelId: currentChannelId, content, reply: replyingToMessage ? { messageId: replyingToMessage.id, mention: isMentionEnabled } : null }); messageInput.value = ''; cancelReply(); } });
+    newTabButton.addEventListener('click', () => { if (currentSessionId) { const gPath = currentGuildId ? `/${currentGuildId}` : ''; const cPath = currentChannelId ? `/${currentChannelId}` : ''; window.open(`client.html#${currentSessionId}${gPath}${cPath}`, '_blank'); } });
+    shareButton.addEventListener('click', () => { if (!currentSessionId) return alert('まずログインしてください。'); const listEl = document.getElementById('share-guild-list'); listEl.innerHTML = '読み込み中...'; socket.emit('getGuilds', (guilds) => { listEl.innerHTML = ''; guilds.forEach(g => { listEl.innerHTML += `<label><input type="checkbox" name="guild" value="${g.id}"> ${g.name}</label><br>`; }); }); shareModal.style.display = 'flex'; });
+    invalidateLinkButton.addEventListener('click', () => { const url = invalidateUrlInput.value.trim(); if (!url) return; socket.emit('invalidateShareLink', url, (res) => { alert(res.message); if (res.success) invalidateUrlInput.value = ''; }); });
+    shareModalCloseButton.addEventListener('click', () => shareModal.style.display = 'none');
+    shareModal.addEventListener('click', (e) => { if (e.target === shareModal) shareModal.style.display = 'none'; });
+    shareSettingsForm.addEventListener('submit', (e) => { e.preventDefault(); const fData = new FormData(e.target); const data = { permissions: { canSendMessage: fData.has('canSendMessage'), allowedGuilds: fData.getAll('guild'), expiry: fData.get('expiry') }, origin: window.location.origin }; socket.emit('createShareLink', data, (res) => { if (res.success) { prompt('このリンクを共有してください:', res.url); shareModal.style.display = 'none'; } else { alert("リンク作成失敗"); } }); });
+    document.addEventListener('click', (e) => { if (!e.target.closest('.context-menu')) { guildContextMenu.style.display = 'none'; messageContextMenu.style.display = 'none'; } });
+    guildContextMenu.addEventListener('click', (e) => { const action = e.target.dataset.action; const guildId = guildContextMenu.dataset.targetGuildId; if (action === 'move-top' && guildId) { const item = document.querySelector(`#embedded-client .guild-icon[data-guild-id='${guildId}']`).closest('.guild-item'); const dmIcon = guildList.querySelector(`[data-guild-id='@me']`).closest('.guild-item'); dmIcon.insertAdjacentElement('afterend', item); const newOrder = [...guildList.children].map(i => i.querySelector('.guild-icon').dataset.guildId).filter(id => id !== '@me'); localStorage.setItem('guildOrder', JSON.stringify(newOrder)); } guildContextMenu.style.display = 'none'; });
+    messageContextMenu.addEventListener('click', (e) => { const action = e.target.dataset.action; const msgId = messageContextMenu.dataset.messageId; const authorName = messageContextMenu.dataset.authorUsername; if (action === 'reply') { replyingToMessage = { id: msgId, username: authorName }; replyToUser.textContent = `@${authorName}`; replyIndicator.style.display = 'flex'; messageInput.focus(); } else if (action === 'delete') { if (confirm('このメッセージを削除しますか？')) socket.emit('deleteMessage', { channelId: currentChannelId, messageId: msgId }, (res) => { if (!res.success) alert('削除失敗'); }); } messageContextMenu.style.display = 'none'; });
+    cancelReplyButton.addEventListener('click', cancelReply);
+    mentionToggleButton.addEventListener('click', () => { isMentionEnabled = !isMentionEnabled; mentionToggleButton.classList.toggle('active', isMentionEnabled); });
+    backToChannelsButton.addEventListener('click', () => embeddedClient.classList.remove('show-messages'));
+}
 
 function handlePageLoad() {
     mainPage.style.display = 'block';
     renderLoginHistory();
-    staggeredFadeIn(document.querySelectorAll('#main-page .anim-target'));
 }
+
+function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); document.querySelector(`.theme-btn[data-theme="${theme}"]`)?.classList.add('active'); }
 
 function showEmbeddedClientPreview(user) {
     previewUserAvatar.src = `${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(user.avatar)}`;
     previewUserName.textContent = user.username;
     clientPreviewWrapper.style.display = 'block';
-    staggeredFadeIn(document.querySelectorAll('#client-preview-wrapper .anim-target'));
     setTimeout(() => clientPreviewWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     loadClientData(user);
 }
 
 function attemptLogin(token) { if (!token) return; const history = JSON.parse(localStorage.getItem('discord-client-history') || '[]'); const isFirstTime = !history.some(acc => acc.token === token); if (isFirstTime) { pendingToken = token; termsModal.style.display = 'flex'; } else { loginButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; loginButton.disabled = true; socket.emit('login', token); } }
+
 function loadClientData(user) { loadGuilds(); }
-function renderLoginHistory() { const history = JSON.parse(localStorage.getItem('discord-client-history') || '[]'); loginHistoryContainer.innerHTML = ''; if (history.length === 0) { loginHistoryContainer.innerHTML = '<p class="no-history">過去のログイン履歴はありません。</p>'; } else { history.forEach(acc => { const item = document.createElement('div'); item.className = 'history-item'; item.dataset.token = acc.token; item.dataset.userid = acc.id; item.innerHTML = `<img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(acc.avatar)}" alt="${acc.username}"><span>${acc.username}</span>`; loginHistoryContainer.appendChild(item); }); } }
+
+function renderLoginHistory() {
+    const history = JSON.parse(localStorage.getItem('discord-client-history') || '[]');
+    loginHistoryContainer.innerHTML = '';
+    if (history.length === 0) {
+        loginHistoryContainer.innerHTML = '<p class="no-history">過去のログイン履歴はありません。</p>';
+    } else {
+        history.forEach(acc => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.dataset.token = acc.token;
+            item.dataset.userid = acc.id;
+            item.innerHTML = `
+                <img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(acc.avatar)}" alt="${acc.username}">
+                <span>${acc.username}</span>
+                <button class="delete-history-btn" title="このログを削除"><i class="fa-solid fa-xmark"></i></button>
+            `;
+            loginHistoryContainer.appendChild(item);
+        });
+    }
+}
 
 function loadGuilds() {
     socket.emit('getGuilds', (guilds) => {
@@ -130,6 +243,7 @@ function selectChannel(channelId, name) {
 }
 
 function loadMessages(channelId) { socket.emit('getMessages', channelId, (messages) => { messageList.innerHTML = ''; lastMessageAuthorId = null; messages.forEach(renderMessage); messageList.scrollTop = messageList.scrollHeight; }); }
+
 function createGuildIcon(guild, isDM = false) { const el = document.createElement('div'); el.className = 'guild-item'; const icon = document.createElement('div'); icon.className = 'guild-icon'; icon.dataset.guildId = guild.id; icon.title = guild.name; if (isDM) { icon.innerHTML = `<i class="fa-brands fa-discord"></i>`; } else if (guild.icon) { icon.innerHTML = `<img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(guild.icon)}" alt="${guild.name}">`; } else { icon.textContent = guild.name.substring(0, 1); } icon.addEventListener('click', () => selectGuild(guild.id, guild.name)); el.appendChild(icon); el.addEventListener('contextmenu', e => showGuildContextMenu(e, guild.id)); el.addEventListener('touchstart', e => { longPressTimer = setTimeout(() => { longPressTimer = null; showGuildContextMenu(e, guild.id); }, 500); }); el.addEventListener('touchend', () => clearTimeout(longPressTimer)); el.addEventListener('touchmove', () => clearTimeout(longPressTimer)); return el; }
 
 function renderMessage(msg) {
@@ -159,33 +273,15 @@ function renderMessage(msg) {
 }
 
 function parseDiscordContent(content) { if (!content) return ''; let pText = content; pText = pText.replace(/<a?:(\w+?):(\d+?)>/g, (match, name, id) => `<img class="emoji" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(`https://cdn.discordapp.com/emojis/${id}.${match.startsWith('<a:') ? 'gif' : 'webp'}?size=48`)}" alt=":${name}:">`); pText = pText.replace(/@\[\[(USER|ROLE):(.+?)\]\]/g, (m, t, n) => `<span class="mention">@${n}</span>`); let html = marked.parse(pText, { breaks: true, gfm: true }).trim().replace(/^<p>|<\/p>$/g, ''); return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }); }
+
 function formatTimestamp(date) { const now = new Date(), yday = new Date(now); yday.setDate(yday.getDate() - 1); const pad = (n) => n.toString().padStart(2, '0'); const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`; if (date.toDateString() === now.toDateString()) return time; if (date.toDateString() === yday.toDateString()) return `昨日 ${time}`; return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${time}`; }
 
-termsAgreeButton.addEventListener('click', () => { termsModal.style.display = 'none'; if (pendingToken) { loginButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; loginButton.disabled = true; socket.emit('login', pendingToken); pendingToken = null; } });
-loginButton.addEventListener('click', () => attemptLogin(tokenInput.value.trim()));
-loginHistoryContainer.addEventListener('click', (e) => { const item = e.target.closest('.history-item'); if (item) attemptLogin(item.dataset.token); });
-chatForm.addEventListener('submit', (e) => { e.preventDefault(); const content = messageInput.value.trim(); if (content && currentChannelId) { socket.emit('sendMessage', { channelId: currentChannelId, content, reply: replyingToMessage ? { messageId: replyingToMessage.id, mention: isMentionEnabled } : null }); messageInput.value = ''; cancelReply(); } });
-newTabButton.addEventListener('click', () => { if (currentSessionId) { const gPath = currentGuildId ? `/${currentGuildId}` : ''; const cPath = currentChannelId ? `/${currentChannelId}` : ''; window.open(`/client/${currentSessionId}${gPath}${cPath}`, '_blank'); } });
-shareButton.addEventListener('click', () => { if (!currentSessionId) return alert('まずログインしてください。'); const listEl = document.getElementById('share-guild-list'); listEl.innerHTML = '読み込み中...'; socket.emit('getGuilds', (guilds) => { listEl.innerHTML = ''; guilds.forEach(g => { listEl.innerHTML += `<label><input type="checkbox" name="guild" value="${g.id}"> ${g.name}</label><br>`; }); }); shareModal.style.display = 'flex'; });
-invalidateLinkButton.addEventListener('click', () => { const url = invalidateUrlInput.value.trim(); if (!url) return; socket.emit('invalidateShareLink', url, (res) => { alert(res.message); if (res.success) invalidateUrlInput.value = ''; }); });
-shareModalCloseButton.addEventListener('click', () => shareModal.style.display = 'none');
-shareModal.addEventListener('click', (e) => { if (e.target === shareModal) shareModal.style.display = 'none'; });
-shareSettingsForm.addEventListener('submit', (e) => { e.preventDefault(); const fData = new FormData(e.target); const data = { permissions: { canSendMessage: fData.has('canSendMessage'), allowedGuilds: fData.getAll('guild'), expiry: fData.get('expiry') }, origin: window.location.origin }; socket.emit('createShareLink', data, (res) => { if (res.success) { prompt('このリンクを共有してください:', res.url); shareModal.style.display = 'none'; } else { alert("リンク作成失敗"); } }); });
-document.addEventListener('click', (e) => { if (!e.target.closest('.context-menu')) { guildContextMenu.style.display = 'none'; messageContextMenu.style.display = 'none'; } });
-guildContextMenu.addEventListener('click', (e) => { const action = e.target.dataset.action; const guildId = guildContextMenu.dataset.targetGuildId; if (action === 'move-top' && guildId) { const item = document.querySelector(`#embedded-client .guild-icon[data-guild-id='${guildId}']`).closest('.guild-item'); const dmIcon = guildList.querySelector(`[data-guild-id='@me']`).closest('.guild-item'); dmIcon.insertAdjacentElement('afterend', item); const newOrder = [...guildList.children].map(i => i.querySelector('.guild-icon').dataset.guildId).filter(id => id !== '@me'); localStorage.setItem('guildOrder', JSON.stringify(newOrder)); } guildContextMenu.style.display = 'none'; });
-messageContextMenu.addEventListener('click', (e) => { const action = e.target.dataset.action; const msgId = messageContextMenu.dataset.messageId; const authorName = messageContextMenu.dataset.authorUsername; if (action === 'reply') { replyingToMessage = { id: msgId, username: authorName }; replyToUser.textContent = `@${authorName}`; replyIndicator.style.display = 'flex'; messageInput.focus(); } else if (action === 'delete') { if (confirm('このメッセージを削除しますか？')) socket.emit('deleteMessage', { channelId: currentChannelId, messageId: msgId }, (res) => { if (!res.success) alert('削除失敗'); }); } messageContextMenu.style.display = 'none'; });
-cancelReplyButton.addEventListener('click', cancelReply);
-mentionToggleButton.addEventListener('click', () => { isMentionEnabled = !isMentionEnabled; mentionToggleButton.classList.toggle('active', isMentionEnabled); });
 function cancelReply() { replyingToMessage = null; replyIndicator.style.display = 'none'; isMentionEnabled = false; mentionToggleButton.classList.remove('active'); }
-function showGuildContextMenu(e, guildId) { e.preventDefault(); guildContextMenu.style.display = 'block'; const touch = e.touches ? e.touches[0] : e; guildContextMenu.style.left = `${touch.pageX}px`; guildContextMenu.style.top = `${touch.pageY}px`; guildContextMenu.dataset.targetGuildId = guildId; }
-function showMessageContextMenu(e) { e.preventDefault(); const msgEl = e.target.closest('.message'); if (!msgEl) return; messageContextMenu.querySelector('[data-action="delete"]').style.display = (msgEl.dataset.authorId === currentUser.id) ? 'block' : 'none'; messageContextMenu.style.display = 'block'; const touch = e.touches ? e.touches[0] : e; messageContextMenu.style.left = `${touch.pageX}px`; messageContextMenu.style.top = `${touch.pageY}px`; messageContextMenu.dataset.messageId = msgEl.dataset.messageId; messageContextMenu.dataset.authorUsername = msgEl.dataset.authorUsername; }
-function staggeredFadeIn(elements) { elements.forEach((el, index) => setTimeout(() => el.classList.add('fade-in-up'), index * 150)); }
-window.addEventListener('scroll', () => { if (window.scrollY > 50) pageHeader.classList.add('hidden'); else pageHeader.classList.remove('hidden'); });
-tokenButton.addEventListener('click', (e) => { e.preventDefault(); tokenInputSection.scrollIntoView({ behavior: 'smooth' }); });
-detailButton.addEventListener('click', (e) => { e.preventDefault(); aboutThisProjectSection.scrollIntoView({ behavior: 'smooth' }); });
-backToChannelsButton.addEventListener('click', () => embeddedClient.classList.remove('show-messages'));
 
-// --- ソケットイベント ---
+function showGuildContextMenu(e, guildId) { e.preventDefault(); guildContextMenu.style.display = 'block'; const touch = e.touches ? e.touches[0] : e; guildContextMenu.style.left = `${touch.pageX}px`; guildContextMenu.style.top = `${touch.pageY}px`; guildContextMenu.dataset.targetGuildId = guildId; }
+
+function showMessageContextMenu(e) { e.preventDefault(); const msgEl = e.target.closest('.message'); if (!msgEl) return; messageContextMenu.querySelector('[data-action="delete"]').style.display = (msgEl.dataset.authorId === currentUser.id) ? 'block' : 'none'; messageContextMenu.style.display = 'block'; const touch = e.touches ? e.touches[0] : e; messageContextMenu.style.left = `${touch.pageX}px`; messageContextMenu.style.top = `${touch.pageY}px`; messageContextMenu.dataset.messageId = msgEl.dataset.messageId; messageContextMenu.dataset.authorUsername = msgEl.dataset.authorUsername; }
+
 socket.on('login-success', ({ sessionId, user }) => { currentSessionId = sessionId; currentUser = user; const token = tokenInput.value.trim() || document.querySelector(`[data-userid='${user.id}']`)?.dataset.token; if (token) { let history = JSON.parse(localStorage.getItem('discord-client-history') || '[]'); history = history.filter(h => h.id !== user.id); history.unshift({ ...user, token }); localStorage.setItem('discord-client-history', JSON.stringify(history.slice(0, 5))); } tokenInput.value = ""; loginButton.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i>'; loginButton.disabled = false; showEmbeddedClientPreview(user); renderLoginHistory(); });
 socket.on('login-error', (msg) => { alert(`ログイン失敗: ${msg}`); loginButton.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i>'; loginButton.disabled = false; });
 socket.on('newMessage', (msg) => { if (msg.channelId === currentChannelId) { if (!document.querySelector(`#embedded-client .message[data-message-id='${msg.id}']`)) renderMessage(msg); } });
