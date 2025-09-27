@@ -129,10 +129,19 @@ function initializeSite() {
             });
         });
     });
+
     termsAgreeButton.addEventListener('click', () => { termsModal.style.display = 'none'; if (pendingToken) { loginButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; loginButton.disabled = true; socket.emit('login', pendingToken); pendingToken = null; } });
     loginButton.addEventListener('click', () => attemptLogin(tokenInput.value.trim()));
     chatForm.addEventListener('submit', (e) => { e.preventDefault(); const content = messageInput.value.trim(); if (content && currentChannelId) { socket.emit('sendMessage', { channelId: currentChannelId, content, reply: replyingToMessage ? { messageId: replyingToMessage.id, mention: isMentionEnabled } : null }); messageInput.value = ''; cancelReply(); } });
-    newTabButton.addEventListener('click', () => { if (currentSessionId) { const gPath = currentGuildId ? `/${currentGuildId}` : ''; const cPath = currentChannelId ? `/${currentChannelId}` : ''; window.open(`client.html#${currentSessionId}${gPath}${cPath}`, '_blank'); } });
+    
+    newTabButton.addEventListener('click', () => { 
+        if (currentSessionId) { 
+            const gPath = currentGuildId ? `/${currentGuildId}` : ''; 
+            const cPath = currentChannelId ? `/${currentChannelId}` : '';
+            window.open(`client.html#client/${currentSessionId}${gPath}${cPath}`, '_blank');
+        } 
+    });
+
     shareButton.addEventListener('click', () => { if (!currentSessionId) return alert('まずログインしてください。'); const listEl = document.getElementById('share-guild-list'); listEl.innerHTML = '読み込み中...'; socket.emit('getGuilds', (guilds) => { listEl.innerHTML = ''; guilds.forEach(g => { listEl.innerHTML += `<label><input type="checkbox" name="guild" value="${g.id}"> ${g.name}</label><br>`; }); }); shareModal.style.display = 'flex'; });
     invalidateLinkButton.addEventListener('click', () => { const url = invalidateUrlInput.value.trim(); if (!url) return; socket.emit('invalidateShareLink', url, (res) => { alert(res.message); if (res.success) invalidateUrlInput.value = ''; }); });
     shareModalCloseButton.addEventListener('click', () => shareModal.style.display = 'none');
