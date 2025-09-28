@@ -1,5 +1,5 @@
 // =================================================================================
-// script.js (for index.html) - Syntax Error Fixed
+// script.js (for index.html) - Syntax Error Fixed (Final)
 // =================================================================================
 
 const API_SERVER_URL = "https://api.yexe.xyz";
@@ -227,7 +227,6 @@ function showEmbeddedClientPreview(user) {
     previewUserName.textContent = user.username;
     clientPreviewWrapper.style.display = 'block';
     
-    // LenisインスタンスはinitializeSiteにしかないので、ここでは通常のスクロールを使用
     setTimeout(() => {
         clientPreviewWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
@@ -269,11 +268,10 @@ socket.on('login-error', (msg) => {
 function initializeEmbeddedClient(socket) {
     const embeddedClient = document.getElementById('embedded-client');
     if (embeddedClient.dataset.initialized === 'true') {
-        return; // 既に初期化済みの場合は何もしない
+        return;
     }
     embeddedClient.dataset.initialized = 'true';
 
-    // プレビュー内のDOM要素を取得
     const guildList = embeddedClient.querySelector('#guild-list');
     const channelList = embeddedClient.querySelector('#channel-list');
     const messageList = embeddedClient.querySelector('#message-list');
@@ -288,14 +286,13 @@ function initializeEmbeddedClient(socket) {
     const mentionToggleButton = embeddedClient.querySelector('#mention-toggle-button');
     const themeButtons = document.querySelector('.theme-selector-wrapper .theme-buttons');
 
-    // 状態変数
     let localCurrentGuildId = null;
     let localCurrentChannelId = null;
     let localLastMessageAuthorId = null;
     let localReplyingToMessage = null;
     let localIsMentionEnabled = false;
 
-    // --- 関数定義 ---
+    // --- ▼▼▼ ここから欠落していた関数定義をすべて追加 ▼▼▼ ---
     function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); const currentThemeBtn = document.querySelector(`.theme-btn[data-theme="${theme}"]`); if(currentThemeBtn) currentThemeBtn.classList.add('active'); }
     function cancelReply() { localReplyingToMessage = null; replyIndicator.style.display = 'none'; localIsMentionEnabled = false; mentionToggleButton.classList.remove('active'); }
     
@@ -397,18 +394,22 @@ function initializeEmbeddedClient(socket) {
     function parseDiscordContent(content) { if (!content) return ''; let pText = content; pText = pText.replace(/<a?:(\w+?):(\d+?)>/g, (match, name, id) => `<img class="emoji" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(`https://cdn.discordapp.com/emojis/${id}.${match.startsWith('<a:') ? 'gif' : 'webp'}?size=48`)}" alt=":${name}:">`); pText = pText.replace(/@\[\[(USER|ROLE):(.+?)\]\]/g, (m, t, n) => `<span class="mention">@${n}</span>`); let html = marked.parse(pText, { breaks: true, gfm: true }).trim().replace(/^<p>|<\/p>$/g, ''); return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }); }
     
     function formatTimestamp(date) { const now = new Date(), yday = new Date(now); yday.setDate(yday.getDate() - 1); const pad = (n) => n.toString().padStart(2, '0'); const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`; if (date.toDateString() === now.toDateString()) return time; if (date.toDateString() === yday.toDateString()) return `昨日 ${time}`; return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${time}`; }
-    
+    // --- ▲▲▲ ---
+
+    // --- イベントリスナー ---
     backToChannelsButton.addEventListener('click', () => embeddedClient.classList.remove('show-messages'));
     chatForm.addEventListener('submit', (e) => { e.preventDefault(); const content = messageInput.value.trim(); if (content && localCurrentChannelId) { socket.emit('sendMessage', { channelId: localCurrentChannelId, content, reply: localReplyingToMessage ? { messageId: localReplyingToMessage.id, mention: localIsMentionEnabled } : null }); messageInput.value = ''; cancelReply(); } });
     cancelReplyButton.addEventListener('click', cancelReply);
     mentionToggleButton.addEventListener('click', () => { localIsMentionEnabled = !localIsMentionEnabled; mentionToggleButton.classList.toggle('active', localIsMentionEnabled); });
     if (themeButtons) themeButtons.addEventListener('click', (e) => { if (e.target.classList.contains('theme-btn')) applyTheme(e.target.dataset.theme); });
     
+    // --- Socket.IOリスナー ---
     socket.off('newMessage');
     socket.on('newMessage', (msg) => { if (msg.channelId === localCurrentChannelId) { if (!messageList.querySelector(`.message[data-message-id='${msg.id}']`)) renderMessage(msg); } });
     socket.off('messageDeleted');
     socket.on('messageDeleted', ({ channelId, messageId }) => { if (channelId === localCurrentChannelId) { const msgEl = embeddedClient.querySelector(`.message[data-message-id='${messageId}']`); if (msgEl) msgEl.remove(); } });
 
+    // --- 初期化実行 ---
     socket.emit('getGuilds', (guilds) => {
         guildList.innerHTML = '';
         guildList.appendChild(createGuildIcon({ id: '@me', name: 'ダイレクトメッセージ', icon: null }, true));
@@ -418,6 +419,4 @@ function initializeEmbeddedClient(socket) {
         new Sortable(guildList, { animation: 150, delay: 200, delayOnTouchOnly: true, onEnd: () => { const newOrder = [...guildList.children].map(item => item.querySelector('.guild-icon').dataset.guildId).filter(id => id !== '@me'); localStorage.setItem('guildOrder', JSON.stringify(newOrder)); } });
         selectGuild('@me', 'ダイレクトメッセージ');
     });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         }
-    }
 }
