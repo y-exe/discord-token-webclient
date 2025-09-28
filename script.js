@@ -1,5 +1,4 @@
 const API_SERVER_URL = "https://api.yexe.xyz";
-
 const socket = io(API_SERVER_URL);
 
 const mainPage = document.getElementById('main-page');
@@ -205,9 +204,7 @@ function handlePageLoad() {
     mainPage.style.display = 'block';
     renderLoginHistory();
 }
-
 function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); const currentThemeBtn = document.querySelector(`.theme-btn[data-theme="${theme}"]`); if(currentThemeBtn) currentThemeBtn.classList.add('active'); }
-
 function showEmbeddedClientPreview(user) {
     previewUserAvatar.src = `${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(user.avatar)}`;
     previewUserName.textContent = user.username;
@@ -215,7 +212,6 @@ function showEmbeddedClientPreview(user) {
     setTimeout(() => clientPreviewWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     loadClientData(user);
 }
-
 function attemptLogin(token) { 
     if (!token) return; 
     const history = JSON.parse(localStorage.getItem('discord-client-history') || '[]'); 
@@ -230,9 +226,7 @@ function attemptLogin(token) {
         socket.emit('login', token); 
     } 
 }
-
 function loadClientData(user) { loadGuilds(); }
-
 function renderLoginHistory() {
     const history = JSON.parse(localStorage.getItem('discord-client-history') || '[]');
     loginHistoryContainer.innerHTML = '';
@@ -253,7 +247,6 @@ function renderLoginHistory() {
         });
     }
 }
-
 function loadGuilds() {
     socket.emit('getGuilds', (guilds) => {
         guildList.innerHTML = '';
@@ -264,7 +257,6 @@ function loadGuilds() {
         new Sortable(guildList, { animation: 150, delay: 200, delayOnTouchOnly: true, onEnd: () => { const newOrder = [...guildList.children].map(item => item.querySelector('.guild-icon').dataset.guildId).filter(id => id !== '@me'); localStorage.setItem('guildOrder', JSON.stringify(newOrder)); } });
     });
 }
-
 function selectGuild(guildId, name) {
     if (currentGuildId === guildId) return;
     currentGuildId = guildId; currentChannelId = null;
@@ -276,7 +268,6 @@ function selectGuild(guildId, name) {
     embeddedClient.classList.remove('show-messages');
     if (guildId === '@me') { loadDms(); } else { loadChannels(guildId); }
 }
-
 function loadChannels(guildId) {
     channelList.innerHTML = '<li>読み込み中...</li>';
     socket.emit('getChannels', guildId, (categories) => {
@@ -287,7 +278,6 @@ function loadChannels(guildId) {
         });
     });
 }
-
 function loadDms() {
     channelList.innerHTML = '<li>読み込み中...</li>';
     socket.emit('getDms', (dms) => {
@@ -296,7 +286,6 @@ function loadDms() {
         dms.forEach(dm => { const el = document.createElement('li'); el.className = 'channel-item dm-item'; el.dataset.channelId = dm.id; el.innerHTML = `<img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(dm.avatar)}" class="dm-avatar" alt=""> ${dm.name}`; el.addEventListener('click', () => selectChannel(dm.id, dm.name)); channelList.appendChild(el); });
     });
 }
-
 function selectChannel(channelId, name) {
     if (currentChannelId === channelId && embeddedClient.classList.contains('show-messages')) return;
     currentChannelId = channelId;
@@ -309,9 +298,7 @@ function selectChannel(channelId, name) {
     embeddedClient.classList.add('show-messages');
     loadMessages(channelId);
 }
-
 function loadMessages(channelId) { socket.emit('getMessages', channelId, (messages) => { messageList.innerHTML = ''; lastMessageAuthorId = null; messages.forEach(renderMessage); messageList.scrollTop = messageList.scrollHeight; }); }
-
 function createGuildIcon(guild, isDM = false) { 
     const el = document.createElement('div'); el.className = 'guild-item'; 
     const icon = document.createElement('div'); icon.className = 'guild-icon'; 
@@ -323,7 +310,6 @@ function createGuildIcon(guild, isDM = false) {
     el.appendChild(icon); 
     return el; 
 }
-
 function renderMessage(msg) {
     const isScrolledToBottom = messageList.scrollHeight - messageList.clientHeight <= messageList.scrollTop + 50;
     const el = document.createElement('div'); el.className = 'message'; el.dataset.messageId = msg.id; el.dataset.authorId = msg.author.id; el.dataset.authorUsername = msg.author.username;
@@ -343,16 +329,11 @@ function renderMessage(msg) {
     }
     messageList.appendChild(el);
     lastMessageAuthorId = msg.author.id;
-
     if (isScrolledToBottom) messageList.scrollTop = messageList.scrollHeight;
 }
-
 function parseDiscordContent(content) { if (!content) return ''; let pText = content; pText = pText.replace(/<a?:(\w+?):(\d+?)>/g, (match, name, id) => `<img class="emoji" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(`https://cdn.discordapp.com/emojis/${id}.${match.startsWith('<a:') ? 'gif' : 'webp'}?size=48`)}" alt=":${name}:">`); pText = pText.replace(/@\[\[(USER|ROLE):(.+?)\]\]/g, (m, t, n) => `<span class="mention">@${n}</span>`); let html = marked.parse(pText, { breaks: true, gfm: true }).trim().replace(/^<p>|<\/p>$/g, ''); return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }); }
-
 function formatTimestamp(date) { const now = new Date(), yday = new Date(now); yday.setDate(yday.getDate() - 1); const pad = (n) => n.toString().padStart(2, '0'); const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`; if (date.toDateString() === now.toDateString()) return time; if (date.toDateString() === yday.toDateString()) return `昨日 ${time}`; return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${time}`; }
-
 function cancelReply() { replyingToMessage = null; replyIndicator.style.display = 'none'; isMentionEnabled = false; mentionToggleButton.classList.remove('active'); }
-
 socket.on('login-success', ({ sessionId, user }) => { currentSessionId = sessionId; currentUser = user; const token = tokenInput.value.trim() || document.querySelector(`[data-userid='${user.id}']`)?.dataset.token; if (token) { let history = JSON.parse(localStorage.getItem('discord-client-history') || '[]'); history = history.filter(h => h.id !== user.id); history.unshift({ ...user, token }); localStorage.setItem('discord-client-history', JSON.stringify(history.slice(0, 5))); } tokenInput.value = ""; loginButton.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i>'; loginButton.disabled = false; showEmbeddedClientPreview(user); renderLoginHistory(); });
 socket.on('login-error', (msg) => { alert(`ログイン失敗: ${msg}`); loginButton.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i>'; loginButton.disabled = false; });
 socket.on('newMessage', (msg) => { if (msg.channelId === currentChannelId) { if (!document.querySelector(`#embedded-client .message[data-message-id='${msg.id}']`)) renderMessage(msg); } });
