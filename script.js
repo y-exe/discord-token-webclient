@@ -1,13 +1,14 @@
+// =================================================================================
+// script.js (for index.html) - Syntax Error Fixed
+// =================================================================================
+
 const API_SERVER_URL = "https://api.yexe.xyz";
 const socket = io(API_SERVER_URL);
 
 // ----- グローバル変数 -----
-let currentSessionId = null;
-let currentUser = null;
-let pendingToken = null;
-let replyingToMessage = null; 
-let longPressTimer; 
-let isMentionEnabled = false;
+let currentSessionId = null; 
+let currentUser = null; 
+let pendingToken = null; 
 
 // ----- 初期化のトリガー -----
 document.addEventListener('DOMContentLoaded', initializeSite);
@@ -15,13 +16,9 @@ document.addEventListener('DOMContentLoaded', initializeSite);
 // ----- メイン初期化関数 -----
 function initializeSite() {
     // --- DOM要素の取得 ---
-    const mainPage = document.getElementById('main-page');
-    const clientPreviewWrapper = document.getElementById('client-preview-wrapper');
     const tokenInput = document.getElementById('token-input');
     const loginButton = document.getElementById('login-button');
     const loginHistoryContainer = document.getElementById('login-history');
-    const previewUserAvatar = document.getElementById('preview-user-avatar');
-    const previewUserName = document.getElementById('preview-user-name');
     const newTabButton = document.getElementById('new-tab-button');
     const shareButton = document.getElementById('share-button');
     const invalidateUrlInput = document.getElementById('invalidate-url-input');
@@ -30,7 +27,7 @@ function initializeSite() {
     const embeddedClient = document.getElementById('embedded-client');
     if (!embeddedClient) {
         console.error("Critical error: #embedded-client element not found. Initialization stopped.");
-        return; // embedded-client がなければ何もせず終了
+        return;
     }
 
     // --- Lenis (滑らかスクロール) ---
@@ -229,14 +226,14 @@ function showEmbeddedClientPreview(user) {
     previewUserAvatar.src = `${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(user.avatar)}`;
     previewUserName.textContent = user.username;
     clientPreviewWrapper.style.display = 'block';
+    
+    // LenisインスタンスはinitializeSiteにしかないので、ここでは通常のスクロールを使用
     setTimeout(() => {
-        const lenis = new Lenis();
-        lenis.scrollTo(clientPreviewWrapper, {offset: -50, duration: 1.5});
+        clientPreviewWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
     
     initializeEmbeddedClient(socket);
 }
-
 
 // ----- Socket.IO イベントリスナー -----
 socket.on('login-success', ({ sessionId, user }) => { 
@@ -271,75 +268,97 @@ socket.on('login-error', (msg) => {
 // =================================================================================
 function initializeEmbeddedClient(socket) {
     const embeddedClient = document.getElementById('embedded-client');
-    if (!embeddedClient.dataset.initialized) {
-        embeddedClient.dataset.initialized = 'true';
+    if (embeddedClient.dataset.initialized === 'true') {
+        return; // 既に初期化済みの場合は何もしない
+    }
+    embeddedClient.dataset.initialized = 'true';
 
-        const guildList = embeddedClient.querySelector('#guild-list');
-        const channelList = embeddedClient.querySelector('#channel-list');
-        const messageList = embeddedClient.querySelector('#message-list');
-        const messageInput = embeddedClient.querySelector('#message-input');
-        const chatForm = embeddedClient.querySelector('#chat-form');
-        const guildNameContainer = embeddedClient.querySelector('#guild-name-container');
-        const channelNameText = embeddedClient.querySelector('#channel-name-text');
-        const backToChannelsButton = embeddedClient.querySelector('#back-to-channels');
-        const replyIndicator = embeddedClient.querySelector('#reply-indicator');
-        const replyToUser = embeddedClient.querySelector('#reply-to-user');
-        const cancelReplyButton = embeddedClient.querySelector('#cancel-reply-button');
-        const mentionToggleButton = embeddedClient.querySelector('#mention-toggle-button');
-        const themeButtons = document.querySelector('.theme-selector-wrapper .theme-buttons');
+    // プレビュー内のDOM要素を取得
+    const guildList = embeddedClient.querySelector('#guild-list');
+    const channelList = embeddedClient.querySelector('#channel-list');
+    const messageList = embeddedClient.querySelector('#message-list');
+    const messageInput = embeddedClient.querySelector('#message-input');
+    const chatForm = embeddedClient.querySelector('#chat-form');
+    const guildNameContainer = embeddedClient.querySelector('#guild-name-container');
+    const channelNameText = embeddedClient.querySelector('#channel-name-text');
+    const backToChannelsButton = embeddedClient.querySelector('#back-to-channels');
+    const replyIndicator = embeddedClient.querySelector('#reply-indicator');
+    const replyToUser = embeddedClient.querySelector('#reply-to-user');
+    const cancelReplyButton = embeddedClient.querySelector('#cancel-reply-button');
+    const mentionToggleButton = embeddedClient.querySelector('#mention-toggle-button');
+    const themeButtons = document.querySelector('.theme-selector-wrapper .theme-buttons');
 
-        let localCurrentGuildId = null;
-        let localCurrentChannelId = null;
-        let localLastMessageAuthorId = null;
-        let localReplyingToMessage = null;
-        let localIsMentionEnabled = false;
+    // 状態変数
+    let localCurrentGuildId = null;
+    let localCurrentChannelId = null;
+    let localLastMessageAuthorId = null;
+    let localReplyingToMessage = null;
+    let localIsMentionEnabled = false;
 
-        function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); const currentThemeBtn = document.querySelector(`.theme-btn[data-theme="${theme}"]`); if(currentThemeBtn) currentThemeBtn.classList.add('active'); }
-        function cancelReply() { localReplyingToMessage = null; replyIndicator.style.display = 'none'; localIsMentionEnabled = false; mentionToggleButton.classList.remove('active'); }
-        
-        function selectGuild(guildId, name) {
-            if (localCurrentGuildId === guildId) return;
-            localCurrentGuildId = guildId;
-            localCurrentChannelId = null;
-            embeddedClient.dataset.currentGuildId = guildId;
-            embeddedClient.dataset.currentChannelId = '';
-            document.querySelectorAll('#embedded-client .guild-icon.active').forEach(el => el.classList.remove('active'));
-            embeddedClient.querySelector(`[data-guild-id='${guildId}']`).classList.add('active');
-            guildNameContainer.textContent = name;
-            channelNameText.textContent = 'チャンネルを選択';
-            messageList.innerHTML = '<div class="welcome-message">サーバーとチャンネルを選択してください</div>';
-            messageInput.disabled = true;
+    // --- 関数定義 ---
+    function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); const currentThemeBtn = document.querySelector(`.theme-btn[data-theme="${theme}"]`); if(currentThemeBtn) currentThemeBtn.classList.add('active'); }
+    function cancelReply() { localReplyingToMessage = null; replyIndicator.style.display = 'none'; localIsMentionEnabled = false; mentionToggleButton.classList.remove('active'); }
+    
+    function selectGuild(guildId, name) {
+        if (localCurrentGuildId === guildId) return;
+        localCurrentGuildId = guildId;
+        localCurrentChannelId = null;
+        embeddedClient.dataset.currentGuildId = guildId;
+        embeddedClient.dataset.currentChannelId = '';
+        document.querySelectorAll('#embedded-client .guild-icon.active').forEach(el => el.classList.remove('active'));
+        embeddedClient.querySelector(`[data-guild-id='${guildId}']`).classList.add('active');
+        guildNameContainer.textContent = name;
+        channelNameText.textContent = 'チャンネルを選択';
+        messageList.innerHTML = '<div class="welcome-message">サーバーとチャンネルを選択してください</div>';
+        messageInput.disabled = true;
+        channelList.innerHTML = '';
+        embeddedClient.classList.remove('show-messages');
+        if (guildId === '@me') loadDms(); else loadChannels(guildId);
+    }
+
+    function loadChannels(guildId) {
+        channelList.innerHTML = '<li>読み込み中...</li>';
+        socket.emit('getChannels', guildId, (categories) => {
             channelList.innerHTML = '';
-            embeddedClient.classList.remove('show-messages');
-            if (guildId === '@me') loadDms(); else loadChannels(guildId);
-        }
+            categories.forEach(cat => {
+                if (cat.name) { const catEl = document.createElement('div'); catEl.className = 'channel-category'; catEl.textContent = cat.name; channelList.appendChild(catEl); }
+                cat.channels.forEach(ch => { const el = document.createElement('li'); el.className = 'channel-item'; el.innerHTML = `<span class="channel-prefix">#</span> ${ch.name}`; el.dataset.channelId = ch.id; el.addEventListener('click', () => selectChannel(ch.id, ch.name)); channelList.appendChild(el); });
+            });
+        });
+    }
+    
+    function loadDms() {
+        channelList.innerHTML = '<li>読み込み中...</li>';
+        socket.emit('getDms', (dms) => {
+            channelList.innerHTML = '';
+            const catEl = document.createElement('div'); catEl.className = 'channel-category'; catEl.textContent = 'ダイレクトメッセージ'; channelList.appendChild(catEl);
+            dms.forEach(dm => { const el = document.createElement('li'); el.className = 'channel-item dm-item'; el.dataset.channelId = dm.id; el.innerHTML = `<img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(dm.avatar)}" class="dm-avatar" alt=""> ${dm.name}`; el.addEventListener('click', () => selectChannel(dm.id, dm.name)); channelList.appendChild(el); });
+        });
+    }
 
-        function loadChannels(guildId) { /* ... (前回のコードから変更なし) ... */ }
-        function loadDms() { /* ... (前回のコードから変更なし) ... */ }
-
-        function selectChannel(channelId, name) {
-            if (localCurrentChannelId === channelId && embeddedClient.classList.contains('show-messages')) return;
-            localCurrentChannelId = channelId;
-            embeddedClient.dataset.currentChannelId = channelId;
-            document.querySelectorAll('#embedded-client .channel-item.active').forEach(el => el.classList.remove('active'));
-            embeddedClient.querySelector(`[data-channel-id='${channelId}']`).classList.add('active');
-            const prefix = localCurrentGuildId === '@me' ? '@' : '# ';
-            channelNameText.textContent = `${prefix}${name}`;
-            messageList.innerHTML = '<div class="welcome-message">メッセージを読み込み中...</div>';
-            messageInput.disabled = false;
-            messageInput.placeholder = `${prefix}${name} へのメッセージ`;
-            embeddedClient.classList.add('show-messages');
-            loadMessages();
-        }
-        
-        function loadMessages() { 
-            socket.emit('getMessages', localCurrentChannelId, (messages) => { 
-                messageList.innerHTML = ''; 
-                localLastMessageAuthorId = null; 
-                messages.forEach(renderMessage); 
-                messageList.scrollTop = messageList.scrollHeight; 
-            }); 
-        }
+    function selectChannel(channelId, name) {
+        if (localCurrentChannelId === channelId && embeddedClient.classList.contains('show-messages')) return;
+        localCurrentChannelId = channelId;
+        embeddedClient.dataset.currentChannelId = channelId;
+        document.querySelectorAll('#embedded-client .channel-item.active').forEach(el => el.classList.remove('active'));
+        embeddedClient.querySelector(`[data-channel-id='${channelId}']`).classList.add('active');
+        const prefix = localCurrentGuildId === '@me' ? '@' : '# ';
+        channelNameText.textContent = `${prefix}${name}`;
+        messageList.innerHTML = '<div class="welcome-message">メッセージを読み込み中...</div>';
+        messageInput.disabled = false;
+        messageInput.placeholder = `${prefix}${name} へのメッセージ`;
+        embeddedClient.classList.add('show-messages');
+        loadMessages();
+    }
+    
+    function loadMessages() { 
+        socket.emit('getMessages', localCurrentChannelId, (messages) => { 
+            messageList.innerHTML = ''; 
+            localLastMessageAuthorId = null; 
+            messages.forEach(renderMessage); 
+            messageList.scrollTop = messageList.scrollHeight; 
+        }); 
+    }
 
     function createGuildIcon(guild, isDM = false) { 
         const el = document.createElement('div'); el.className = 'guild-item'; 
@@ -353,32 +372,32 @@ function initializeEmbeddedClient(socket) {
         return el; 
     }
 
-function renderMessage(msg, messageList) {
-    const isScrolledToBottom = messageList.scrollHeight - messageList.clientHeight <= messageList.scrollTop + 50;
-    const el = document.createElement('div'); el.className = 'message'; el.dataset.messageId = msg.id; el.dataset.authorId = msg.author.id; el.dataset.authorUsername = msg.author.username;
-    const contentHtml = parseDiscordContent(msg.content);
-    let attachmentsHtml = msg.attachments?.map(att => { const urlWithoutQuery = att.url.split('?')[0]; if (/\.(jpeg|jpg|gif|png|webp)$/i.test(urlWithoutQuery)) { return `<div class="message-attachment"><img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(att.url)}" alt="添付画像"></div>`; } return ''; }).join('') || '';
-    let embedsHtml = msg.embeds?.map(embed => { const borderColor = embed.color ? `style="border-color: ${embed.color}"` : ''; const authorHtml = embed.author ? `<div class="embed-author">${embed.author.iconURL ? `<img class="embed-author-icon" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(embed.author.iconURL)}">` : ''}${embed.author.url ? `<a href="${embed.author.url}" target="_blank" rel="noopener noreferrer">${embed.author.name}</a>` : `<span>${embed.author.name}</span>`}</div>` : ''; const titleHtml = embed.title ? `<div class="embed-title">${embed.url ? `<a href="${embed.url}" target="_blank" rel="noopener noreferrer">${embed.title}</a>` : embed.title}</div>` : ''; const descHtml = embed.description ? `<div class="embed-description">${parseDiscordContent(embed.description)}</div>` : ''; const fieldsHtml = embed.fields ? `<div class="embed-fields">${embed.fields.map(field => `<div class="embed-field ${field.inline ? 'inline' : ''}"><div class="embed-field-name">${field.name}</div><div>${parseDiscordContent(field.value)}</div></div>`).join('')}</div>` : ''; const imageHtml = embed.image ? `<div class="embed-image"><img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(embed.image.url)}"></div>` : ''; const thumbnailHtml = embed.thumbnail ? `<div class="embed-thumbnail"><img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(embed.thumbnail.url)}"></div>` : ''; const footerHtml = embed.footer ? `<div class="embed-footer">${embed.footer.iconURL ? `<img class="embed-footer-icon" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(embed.footer.iconURL)}">` : ''}<span>${embed.footer.text}</span></div>` : ''; return `<div class="embed-wrapper" ${borderColor}><div class="embed-grid"><div class="embed-main">${authorHtml}${titleHtml}${descHtml}${fieldsHtml}${imageHtml}</div>${thumbnailHtml}</div>${footerHtml}</div>`; }).join('') || '';
-    const displayName = msg.author.displayName === msg.author.username || !msg.author.displayName ? msg.author.username : `${msg.author.displayName} (${msg.author.username})`;
-    const botTag = msg.author.bot ? '<span class="author-bot-tag">BOT</span>' : '';
-    let replyHtml = '';
-    if (msg.replyTo) { replyHtml = `<div class="reply-header"><img class="reply-avatar" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(msg.replyTo.author.avatar)}" alt=""><span class="reply-author">${msg.replyTo.author.displayName}</span><span class="reply-content">${parseDiscordContent(msg.replyTo.content) || '...'}</span></div>`; }
-    if (lastMessageAuthorId !== msg.author.id) {
-        el.classList.add('new-author');
-        const timestamp = formatTimestamp(new Date(msg.timestamp));
-        el.innerHTML = `<img class="message-avatar" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(msg.author.avatar)}" alt=""><div class="message-body">${replyHtml}<div class="author-line"><span class="author">${displayName}${botTag}</span><span class="timestamp">${timestamp}</span></div><div class="content">${contentHtml}${attachmentsHtml}${embedsHtml}</div></div>`;
-    } else {
-        el.innerHTML = `<div class="message-body same-author">${replyHtml}<div class="content">${contentHtml}${attachmentsHtml}${embedsHtml}</div></div>`;
+    function renderMessage(msg) {
+        const isScrolledToBottom = messageList.scrollHeight - messageList.clientHeight <= messageList.scrollTop + 50;
+        const el = document.createElement('div'); el.className = 'message'; el.dataset.messageId = msg.id; el.dataset.authorId = msg.author.id; el.dataset.authorUsername = msg.author.username;
+        const contentHtml = parseDiscordContent(msg.content);
+        let attachmentsHtml = msg.attachments?.map(att => { const urlWithoutQuery = att.url.split('?')[0]; if (/\.(jpeg|jpg|gif|png|webp)$/i.test(urlWithoutQuery)) { return `<div class="message-attachment"><img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(att.url)}" alt="添付画像"></div>`; } return ''; }).join('') || '';
+        let embedsHtml = msg.embeds?.map(embed => { const borderColor = embed.color ? `style="border-color: ${embed.color}"` : ''; const authorHtml = embed.author ? `<div class="embed-author">${embed.author.iconURL ? `<img class="embed-author-icon" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(embed.author.iconURL)}">` : ''}${embed.author.url ? `<a href="${embed.author.url}" target="_blank" rel="noopener noreferrer">${embed.author.name}</a>` : `<span>${embed.author.name}</span>`}</div>` : ''; const titleHtml = embed.title ? `<div class="embed-title">${embed.url ? `<a href="${embed.url}" target="_blank" rel="noopener noreferrer">${embed.title}</a>` : embed.title}</div>` : ''; const descHtml = embed.description ? `<div class="embed-description">${parseDiscordContent(embed.description)}</div>` : ''; const fieldsHtml = embed.fields ? `<div class="embed-fields">${embed.fields.map(field => `<div class="embed-field ${field.inline ? 'inline' : ''}"><div class="embed-field-name">${field.name}</div><div>${parseDiscordContent(field.value)}</div></div>`).join('')}</div>` : ''; const imageHtml = embed.image ? `<div class="embed-image"><img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(embed.image.url)}"></div>` : ''; const thumbnailHtml = embed.thumbnail ? `<div class="embed-thumbnail"><img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(embed.thumbnail.url)}"></div>` : ''; const footerHtml = embed.footer ? `<div class="embed-footer">${embed.footer.iconURL ? `<img class="embed-footer-icon" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(embed.footer.iconURL)}">` : ''}<span>${embed.footer.text}</span></div>` : ''; return `<div class="embed-wrapper" ${borderColor}><div class="embed-grid"><div class="embed-main">${authorHtml}${titleHtml}${descHtml}${fieldsHtml}${imageHtml}</div>${thumbnailHtml}</div>${footerHtml}</div>`; }).join('') || '';
+        const displayName = msg.author.displayName === msg.author.username || !msg.author.displayName ? msg.author.username : `${msg.author.displayName} (${msg.author.username})`;
+        const botTag = msg.author.bot ? '<span class="author-bot-tag">BOT</span>' : '';
+        let replyHtml = '';
+        if (msg.replyTo) { replyHtml = `<div class="reply-header"><img class="reply-avatar" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(msg.replyTo.author.avatar)}" alt=""><span class="reply-author">${msg.replyTo.author.displayName}</span><span class="reply-content">${parseDiscordContent(msg.replyTo.content) || '...'}</span></div>`; }
+        if (localLastMessageAuthorId !== msg.author.id) {
+            el.classList.add('new-author');
+            const timestamp = formatTimestamp(new Date(msg.timestamp));
+            el.innerHTML = `<img class="message-avatar" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(msg.author.avatar)}" alt=""><div class="message-body">${replyHtml}<div class="author-line"><span class="author">${displayName}${botTag}</span><span class="timestamp">${timestamp}</span></div><div class="content">${contentHtml}${attachmentsHtml}${embedsHtml}</div></div>`;
+        } else {
+            el.innerHTML = `<div class="message-body same-author">${replyHtml}<div class="content">${contentHtml}${attachmentsHtml}${embedsHtml}</div></div>`;
+        }
+        messageList.appendChild(el);
+        localLastMessageAuthorId = msg.author.id;
+        if (isScrolledToBottom) messageList.scrollTop = messageList.scrollHeight;
     }
-    messageList.appendChild(el);
-    lastMessageAuthorId = msg.author.id;
-    if (isScrolledToBottom) messageList.scrollTop = messageList.scrollHeight;
-}
 
-function parseDiscordContent(content) { if (!content) return ''; let pText = content; pText = pText.replace(/<a?:(\w+?):(\d+?)>/g, (match, name, id) => `<img class="emoji" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(`https://cdn.discordapp.com/emojis/${id}.${match.startsWith('<a:') ? 'gif' : 'webp'}?size=48`)}" alt=":${name}:">`); pText = pText.replace(/@\[\[(USER|ROLE):(.+?)\]\]/g, (m, t, n) => `<span class="mention">@${n}</span>`); let html = marked.parse(pText, { breaks: true, gfm: true }).trim().replace(/^<p>|<\/p>$/g, ''); return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }); }
-
-function formatTimestamp(date) { const now = new Date(), yday = new Date(now); yday.setDate(yday.getDate() - 1); const pad = (n) => n.toString().padStart(2, '0'); const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`; if (date.toDateString() === now.toDateString()) return time; if (date.toDateString() === yday.toDateString()) return `昨日 ${time}`; return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${time}`; }
-
+    function parseDiscordContent(content) { if (!content) return ''; let pText = content; pText = pText.replace(/<a?:(\w+?):(\d+?)>/g, (match, name, id) => `<img class="emoji" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(`https://cdn.discordapp.com/emojis/${id}.${match.startsWith('<a:') ? 'gif' : 'webp'}?size=48`)}" alt=":${name}:">`); pText = pText.replace(/@\[\[(USER|ROLE):(.+?)\]\]/g, (m, t, n) => `<span class="mention">@${n}</span>`); let html = marked.parse(pText, { breaks: true, gfm: true }).trim().replace(/^<p>|<\/p>$/g, ''); return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }); }
+    
+    function formatTimestamp(date) { const now = new Date(), yday = new Date(now); yday.setDate(yday.getDate() - 1); const pad = (n) => n.toString().padStart(2, '0'); const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`; if (date.toDateString() === now.toDateString()) return time; if (date.toDateString() === yday.toDateString()) return `昨日 ${time}`; return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${time}`; }
+    
     backToChannelsButton.addEventListener('click', () => embeddedClient.classList.remove('show-messages'));
     chatForm.addEventListener('submit', (e) => { e.preventDefault(); const content = messageInput.value.trim(); if (content && localCurrentChannelId) { socket.emit('sendMessage', { channelId: localCurrentChannelId, content, reply: localReplyingToMessage ? { messageId: localReplyingToMessage.id, mention: localIsMentionEnabled } : null }); messageInput.value = ''; cancelReply(); } });
     cancelReplyButton.addEventListener('click', cancelReply);
@@ -399,27 +418,6 @@ function formatTimestamp(date) { const now = new Date(), yday = new Date(now); y
         new Sortable(guildList, { animation: 150, delay: 200, delayOnTouchOnly: true, onEnd: () => { const newOrder = [...guildList.children].map(item => item.querySelector('.guild-icon').dataset.guildId).filter(id => id !== '@me'); localStorage.setItem('guildOrder', JSON.stringify(newOrder)); } });
         selectGuild('@me', 'ダイレクトメッセージ');
     });
-}
-
-            backToChannelsButton.addEventListener('click', () => embeddedClient.classList.remove('show-messages'));
-        chatForm.addEventListener('submit', (e) => { e.preventDefault(); const content = messageInput.value.trim(); if (content && localCurrentChannelId) { socket.emit('sendMessage', { channelId: localCurrentChannelId, content, reply: localReplyingToMessage ? { messageId: localReplyingToMessage.id, mention: localIsMentionEnabled } : null }); messageInput.value = ''; cancelReply(); } });
-        cancelReplyButton.addEventListener('click', cancelReply);
-        mentionToggleButton.addEventListener('click', () => { localIsMentionEnabled = !localIsMentionEnabled; mentionToggleButton.classList.toggle('active', localIsMentionEnabled); });
-        if (themeButtons) themeButtons.addEventListener('click', (e) => { if (e.target.classList.contains('theme-btn')) applyTheme(e.target.dataset.theme); });
-        
-        socket.off('newMessage');
-        socket.on('newMessage', (msg) => { if (msg.channelId === localCurrentChannelId) { if (!messageList.querySelector(`.message[data-message-id='${msg.id}']`)) renderMessage(msg); } });
-        socket.off('messageDeleted');
-        socket.on('messageDeleted', ({ channelId, messageId }) => { if (channelId === localCurrentChannelId) { const msgEl = embeddedClient.querySelector(`.message[data-message-id='${messageId}']`); if (msgEl) msgEl.remove(); } });
-
-        socket.emit('getGuilds', (guilds) => {
-            guildList.innerHTML = '';
-            guildList.appendChild(createGuildIcon({ id: '@me', name: 'ダイレクトメッセージ', icon: null }, true));
-            const savedOrder = JSON.parse(localStorage.getItem('guildOrder'));
-            if (savedOrder) { guilds.sort((a, b) => { const iA = savedOrder.indexOf(a.id), iB = savedOrder.indexOf(b.id); if (iA === -1) return 1; if (iB === -1) return -1; return iA - iB; }); }
-            guilds.forEach(guild => guildList.appendChild(createGuildIcon(guild, false)));
-            new Sortable(guildList, { animation: 150, delay: 200, delayOnTouchOnly: true, onEnd: () => { const newOrder = [...guildList.children].map(item => item.querySelector('.guild-icon').dataset.guildId).filter(id => id !== '@me'); localStorage.setItem('guildOrder', JSON.stringify(newOrder)); } });
-            selectGuild('@me', 'ダイレクトメッセージ');
-        });
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         }
     }
 }
