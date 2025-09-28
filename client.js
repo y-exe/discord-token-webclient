@@ -24,10 +24,8 @@ const mentionToggleButton = document.getElementById('mention-toggle-button');
 const welcomeScreen = document.getElementById('welcome-screen');
 const welcomeUserMessage = document.getElementById('welcome-user-message');
 
-// ----- グローバル変数 -----
 let currentSessionId = null; let currentGuildId = null; let currentChannelId = null; let lastMessageAuthorId = null; let currentUser = null; let replyingToMessage = null; let longPressTimer; let isMentionEnabled = false;
 
-// ----- 関数群 -----
 function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); const currentThemeBtn = document.querySelector(`.theme-btn[data-theme="${theme}"]`); if(currentThemeBtn) currentThemeBtn.classList.add('active'); }
 
 document.addEventListener('DOMContentLoaded', () => {
