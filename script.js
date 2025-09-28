@@ -121,36 +121,11 @@ function initializeSite() {
         });
     });
 
-    // ▼▼▼ 存在しない要素に対するイベントリスナーを削除 ▼▼▼
-    // termsAgreeButton.addEventListener('click', ...);
-    loginButton.addEventListener('click', () => attemptLogin(tokenInput.value.trim()));
-    chatForm.addEventListener('submit', (e) => { e.preventDefault(); const content = messageInput.value.trim(); if (content && currentChannelId) { socket.emit('sendMessage', { channelId: currentChannelId, content, reply: replyingToMessage ? { messageId: replyingToMessage.id, mention: isMentionEnabled } : null }); messageInput.value = ''; cancelReply(); } });
-    newTabButton.addEventListener('click', () => { 
-        if (currentSessionId) { 
-            const gPath = currentGuildId ? `/${currentGuildId}` : ''; 
-            const cPath = currentChannelId ? `/${currentChannelId}` : '';
-            window.open(`client.html#client/${currentSessionId}${gPath}${cPath}`, '_blank');
-        } 
-    });
-    // shareButton.addEventListener('click', ...);
-    // invalidateLinkButton.addEventListener('click', ...);
-    // shareModalCloseButton.addEventListener('click', ...);
-    // shareModal.addEventListener('click', ...);
-    // shareSettingsForm.addEventListener('submit', ...);
-    // document.addEventListener('click', ...); // コンテキストメニュー用
-    // guildContextMenu.addEventListener('click', ...);
-    // messageContextMenu.addEventListener('click', ...);
-    cancelReplyButton.addEventListener('click', cancelReply);
-    mentionToggleButton.addEventListener('click', () => { isMentionEnabled = !isMentionEnabled; mentionToggleButton.classList.toggle('active', isMentionEnabled); });
-    backToChannelsButton.addEventListener('click', () => embeddedClient.classList.remove('show-messages'));
-    // ▲▲▲
-
-    // ▼▼▼ index.htmlに存在する要素のリスナーは残す ▼▼▼
     const termsModal = document.getElementById('terms-modal');
     const termsAgreeButton = document.getElementById('terms-agree-button');
-    if (termsAgreeButton) {
+    if (termsAgreeButton && termsModal) {
         termsAgreeButton.addEventListener('click', () => { 
-            if(termsModal) termsModal.classList.remove('visible');
+            termsModal.classList.remove('visible');
             if (pendingToken) { 
                 loginButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; 
                 loginButton.disabled = true; 
@@ -210,43 +185,20 @@ function initializeSite() {
             }); 
         });
     }
+
+    loginButton.addEventListener('click', () => attemptLogin(tokenInput.value.trim()));
+    chatForm.addEventListener('submit', (e) => { e.preventDefault(); const content = messageInput.value.trim(); if (content && currentChannelId) { socket.emit('sendMessage', { channelId: currentChannelId, content, reply: replyingToMessage ? { messageId: replyingToMessage.id, mention: isMentionEnabled } : null }); messageInput.value = ''; cancelReply(); } });
+    newTabButton.addEventListener('click', () => { 
+        if (currentSessionId) { 
+            const gPath = currentGuildId ? `/${currentGuildId}` : ''; 
+            const cPath = currentChannelId ? `/${currentChannelId}` : '';
+            window.open(`client.html#client/${currentSessionId}${gPath}${cPath}`, '_blank');
+        } 
+    });
     
-    const guildContextMenu = document.getElementById('guild-context-menu');
-    const messageContextMenu = document.getElementById('message-context-menu');
-    if (guildContextMenu && messageContextMenu) {
-        document.addEventListener('click', (e) => { 
-            if (!e.target.closest('.context-menu')) { 
-                guildContextMenu.style.display = 'none'; 
-                messageContextMenu.style.display = 'none'; 
-            } 
-        });
-        guildContextMenu.addEventListener('click', (e) => { 
-            const action = e.target.dataset.action; 
-            const guildId = guildContextMenu.dataset.targetGuildId; 
-            if (action === 'move-top' && guildId) { 
-                const item = document.querySelector(`#embedded-client .guild-icon[data-guild-id='${guildId}']`).closest('.guild-item'); 
-                const dmIcon = guildList.querySelector(`[data-guild-id='@me']`).closest('.guild-item'); 
-                dmIcon.insertAdjacentElement('afterend', item); 
-                const newOrder = [...guildList.children].map(i => i.querySelector('.guild-icon').dataset.guildId).filter(id => id !== '@me'); 
-                localStorage.setItem('guildOrder', JSON.stringify(newOrder)); 
-            } 
-            guildContextMenu.style.display = 'none'; 
-        });
-        messageContextMenu.addEventListener('click', (e) => { 
-            const action = e.target.dataset.action; 
-            const msgId = messageContextMenu.dataset.messageId; 
-            const authorName = messageContextMenu.dataset.authorUsername; 
-            if (action === 'reply') { 
-                replyingToMessage = { id: msgId, username: authorName }; 
-                replyToUser.textContent = `@${authorName}`; 
-                replyIndicator.style.display = 'flex'; 
-                messageInput.focus(); 
-            } else if (action === 'delete') { 
-                if (confirm('このメッセージを削除しますか？')) socket.emit('deleteMessage', { channelId: currentChannelId, messageId: msgId }, (res) => { if (!res.success) alert('削除失敗'); }); 
-            } 
-            messageContextMenu.style.display = 'none'; 
-        });
-    }
+    cancelReplyButton.addEventListener('click', cancelReply);
+    mentionToggleButton.addEventListener('click', () => { isMentionEnabled = !isMentionEnabled; mentionToggleButton.classList.toggle('active', isMentionEnabled); });
+    backToChannelsButton.addEventListener('click', () => embeddedClient.classList.remove('show-messages'));
 }
 
 function handlePageLoad() {
@@ -254,7 +206,7 @@ function handlePageLoad() {
     renderLoginHistory();
 }
 
-function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); document.querySelector(`.theme-btn[data-theme="${theme}"]`)?.classList.add('active'); }
+function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); const currentThemeBtn = document.querySelector(`.theme-btn[data-theme="${theme}"]`); if(currentThemeBtn) currentThemeBtn.classList.add('active'); }
 
 function showEmbeddedClientPreview(user) {
     previewUserAvatar.src = `${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(user.avatar)}`;
@@ -361,7 +313,6 @@ function selectChannel(channelId, name) {
 function loadMessages(channelId) { socket.emit('getMessages', channelId, (messages) => { messageList.innerHTML = ''; lastMessageAuthorId = null; messages.forEach(renderMessage); messageList.scrollTop = messageList.scrollHeight; }); }
 
 function createGuildIcon(guild, isDM = false) { 
-    const guildContextMenu = document.getElementById('guild-context-menu');
     const el = document.createElement('div'); el.className = 'guild-item'; 
     const icon = document.createElement('div'); icon.className = 'guild-icon'; 
     icon.dataset.guildId = guild.id; icon.title = guild.name; 
@@ -370,12 +321,6 @@ function createGuildIcon(guild, isDM = false) {
     else { icon.textContent = guild.name.substring(0, 1); } 
     icon.addEventListener('click', () => selectGuild(guild.id, guild.name)); 
     el.appendChild(icon); 
-    if (guildContextMenu) {
-        el.addEventListener('contextmenu', e => showGuildContextMenu(e, guild.id)); 
-        el.addEventListener('touchstart', e => { longPressTimer = setTimeout(() => { longPressTimer = null; showGuildContextMenu(e, guild.id); }, 500); }); 
-        el.addEventListener('touchend', () => clearTimeout(longPressTimer)); 
-        el.addEventListener('touchmove', () => clearTimeout(longPressTimer)); 
-    }
     return el; 
 }
 
@@ -398,12 +343,7 @@ function renderMessage(msg) {
     }
     messageList.appendChild(el);
     lastMessageAuthorId = msg.author.id;
-    if (document.getElementById('message-context-menu')) {
-        el.addEventListener('contextmenu', showMessageContextMenu);
-        el.addEventListener('touchstart', (e) => { longPressTimer = setTimeout(() => { longPressTimer = null; showMessageContextMenu(e); }, 500); });
-        el.addEventListener('touchend', () => clearTimeout(longPressTimer));
-        el.addEventListener('touchmove', () => clearTimeout(longPressTimer));
-    }
+
     if (isScrolledToBottom) messageList.scrollTop = messageList.scrollHeight;
 }
 
@@ -412,32 +352,6 @@ function parseDiscordContent(content) { if (!content) return ''; let pText = con
 function formatTimestamp(date) { const now = new Date(), yday = new Date(now); yday.setDate(yday.getDate() - 1); const pad = (n) => n.toString().padStart(2, '0'); const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`; if (date.toDateString() === now.toDateString()) return time; if (date.toDateString() === yday.toDateString()) return `昨日 ${time}`; return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${time}`; }
 
 function cancelReply() { replyingToMessage = null; replyIndicator.style.display = 'none'; isMentionEnabled = false; mentionToggleButton.classList.remove('active'); }
-
-function showGuildContextMenu(e, guildId) { 
-    const guildContextMenu = document.getElementById('guild-context-menu');
-    e.preventDefault(); 
-    if (!guildContextMenu) return;
-    guildContextMenu.style.display = 'block'; 
-    const touch = e.touches ? e.touches[0] : e; 
-    guildContextMenu.style.left = `${touch.pageX}px`; 
-    guildContextMenu.style.top = `${touch.pageY}px`; 
-    guildContextMenu.dataset.targetGuildId = guildId; 
-}
-
-function showMessageContextMenu(e) { 
-    const messageContextMenu = document.getElementById('message-context-menu');
-    e.preventDefault(); 
-    if (!messageContextMenu) return;
-    const msgEl = e.target.closest('.message'); 
-    if (!msgEl) return; 
-    messageContextMenu.querySelector('[data-action="delete"]').style.display = (msgEl.dataset.authorId === currentUser.id) ? 'block' : 'none'; 
-    messageContextMenu.style.display = 'block'; 
-    const touch = e.touches ? e.touches[0] : e; 
-    messageContextMenu.style.left = `${touch.pageX}px`; 
-    messageContextMenu.style.top = `${touch.pageY}px`; 
-    messageContextMenu.dataset.messageId = msgEl.dataset.messageId; 
-    messageContextMenu.dataset.authorUsername = msgEl.dataset.authorUsername; 
-}
 
 socket.on('login-success', ({ sessionId, user }) => { currentSessionId = sessionId; currentUser = user; const token = tokenInput.value.trim() || document.querySelector(`[data-userid='${user.id}']`)?.dataset.token; if (token) { let history = JSON.parse(localStorage.getItem('discord-client-history') || '[]'); history = history.filter(h => h.id !== user.id); history.unshift({ ...user, token }); localStorage.setItem('discord-client-history', JSON.stringify(history.slice(0, 5))); } tokenInput.value = ""; loginButton.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i>'; loginButton.disabled = false; showEmbeddedClientPreview(user); renderLoginHistory(); });
 socket.on('login-error', (msg) => { alert(`ログイン失敗: ${msg}`); loginButton.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i>'; loginButton.disabled = false; });
