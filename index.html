@@ -3,7 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Discord Token Client</title>
+    <title>Discord Web Token Client | 軽量で高機能なプレビュークライアント</title>
+
+    <meta name="description" content="Discordのトークンを使用してブラウザ上で動作する軽量クライアント。サーバーフィルタリングの回避や、メッセージ送信権限付きのプレビュー共有機能を提供します。">
+    <meta name="keywords" content="Discord, トークン, クライアント, Webクライアント, discord.js, selfbot, プレビュー, 共有, フィルタリング回避">
+    <meta name="author" content="yexe">
+    <link rel="canonical" href="https://discord.yexe.xyz/">
+    <link rel="icon" href="https://raw.githubusercontent.com/y-exe/sites/refs/heads/main/file/icon.webp" type="image/webp">
+
+    <meta property="og:title" content="Discord Web Token Client | 軽量プレビュークライアント">
+    <meta property="og:description" content="ブラウザで動作する軽量Discordクライアント。プレビュー共有機能付きで、フィルタリング回避にも。">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://discord.yexe.xyz/">
+    <meta property="og:image" content="https://raw.githubusercontent.com/y-exe/discord-token-webclient/main/image/d1.png">
+    <meta property="og:site_name" content="Discord Web Token Client">
+    <meta property="og:locale" content="ja_JP">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@y__exe">
+    <meta name="twitter:creator" content="@y__exe">
+    <meta name="twitter:title" content="Discord Web Token Client">
+    <meta name="twitter:description" content="ブラウザで動作する軽量Discordクライアント。プレビュー共有機能付き。">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/y-exe/discord-token-webclient/main/image/d1.png">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Discord Web Token Client",
+      "applicationCategory": "SocialNetworking",
+      "operatingSystem": "Web",
+      "description": "Discordのトークンを使用してブラウザ上で動作する軽量クライアント。サーバーフィルタリングの回避や、メッセージ送信権限付きのプレビュー共有機能を提供します。",
+      "author": {
+        "@type": "Person",
+        "name": "yexe",
+        "url": "https://yexe.net"
+      },
+      "url": "https://discord.yexe.xyz/"
+    }
+    </script>
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;700&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
@@ -21,7 +60,7 @@
                     <i class="fa-brands fa-discord"></i> Discord
                 </h2>
                 <p class="hero-subtitle" data-split-text>プレビュー共有機能付き</p>
-                <h1 class="hero-title" data-reveal="up" style="--reveal-delay: 200ms;">Web Token Client</h1>
+                <h1 class="hero-title" data-split-text>Web Token Client</h1>
                 <p class="hero-description" data-reveal="up" style="--reveal-delay: 300ms;">
                     1からシンプルに制作してるため超軽量です<br>
                     フィルタリング回避やプレビューの共有等にご利用ください
@@ -41,6 +80,7 @@
                     <source srcset="https://raw.githubusercontent.com/y-exe/discord-token-webclient/refs/heads/main/image/d4.png" media="(max-width: 768px)">
                     <img src="https://raw.githubusercontent.com/y-exe/discord-token-webclient/refs/heads/main/image/d2.png" alt="Discord Client Preview Foreground">
                 </picture>
+                <a href="/demo.html" class="btn-main btn-demo">デモ画面を開く</a>
             </div>
 
             <div id="scroll-trigger"></div>
@@ -150,40 +190,62 @@
                             <img src="https://paicha.cloud/uploader/new/uploads/2025-09-16/token.webp" alt="トークン取得方法の画像" class="how-to-image">
                         </div>
                     </section>
-                    <p class="copyright" data-reveal="up">© yexe.xyz yexe.net 2025</p>
+                    <div class="site-footer" data-reveal="up">
+                        <p class="footer-site-name">yexe.xyz</p>
+                        <p class="footer-copyright">Copyright © 2025 yexe</p>
+                    </div>
                 </footer>
             </div>
         </section>
     </main>
     
     <div id="share-modal" class="modal-wrapper" style="display: none;">
-        <div class="modal-content">
-            <button class="modal-close" id="share-modal-close-button">×</button>
-            <h2>共有リンクの作成</h2>
+        <div class="modal-content share-modal-content">
+            <div class="modal-header">
+                <h2>共有リンクを作成</h2>
+                <button class="modal-close" id="share-modal-close-button"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="modal-description">
+                このセッションを一時的に閲覧・操作できるリンクを作成します。<br>
+                リンクはタブを閉じると無効になります。
+            </p>
             <form id="share-settings-form">
-                <div class="form-group"><label for="share-expiry">有効期間</label><select id="share-expiry" name="expiry"><option value="3600">1時間</option><option value="86400">1日</option><option value="604800">1週間</option><option value="0">無制限</option></select></div>
-                <div class="form-group"><label><input type="checkbox" name="canSendMessage" checked> メッセージ送信を許可</label></div><hr>
-                <p><strong>表示するサーバー (選択しない場合は全て)</strong></p>
-                <div id="share-guild-list" class="form-group scrollable"></div>
-                <button type="submit">リンクを生成</button>
+                <div class="form-group">
+                    <label for="share-expiry">有効期間</label>
+                    <div class="select-wrapper">
+                        <select id="share-expiry" name="expiry">
+                            <option value="3600">1時間</option>
+                            <option value="21600">6時間</option>
+                            <option value="86400">1日</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>権限</label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="canSendMessage" checked>
+                        <span>メッセージの送信を許可する</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>表示するサーバー (選択しない場合は全て)</label>
+                    <div id="share-guild-list" class="scrollable-list">
+                        <div class="loader"></div>
+                    </div>
+                </div>
+                <button type="submit" class="btn-main btn-primary modal-submit-btn">
+                    <i class="fa-solid fa-link"></i> リンクを生成
+                </button>
             </form>
         </div>
     </div>
+
     <div id="terms-modal" class="modal-wrapper" style="display: none;">
         <div class="modal-content">
             <h2>ご利用の前に</h2>
             <div class="terms-text"><p>スパムなどの目立った行為をするとセルボは利用規約違反に当たるため、<strong>アカウント停止などになる可能性</strong>があります。</p><p>了承したうえでご利用ください。</p><p class="warning">※またこのプロジェクトは責任を取りません。</p></div>
-            <button id="terms-agree-button">承知しました</button>
+            <button id="terms-agree-button" class="btn-main btn-primary" style="width: 100%; justify-content: center;">承知しました</button>
         </div>
-    </div>
-    <div id="guild-context-menu" class="context-menu" style="display: none;">
-        <ul><li data-action="move-top">一番上へ移動</li></ul>
-    </div>
-    <div id="message-context-menu" class="context-menu" style="display: none;">
-        <ul>
-            <li data-action="reply">返信</li>
-            <li data-action="delete" class="danger-action" style="display: none;">削除</li>
-        </ul>
     </div>
     
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
