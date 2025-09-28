@@ -1,3 +1,4 @@
+/* ===== 基本設定と変数 ===== */
 :root {
     --font-geist: 'Geist', sans-serif;
     --font-zen: 'Zen Maru Gothic', sans-serif;
@@ -31,6 +32,27 @@
     --transition-medium: 500ms var(--ease-out-expo);
     --transition-slow: 800ms var(--ease-out-expo);
 }
+
+/* ▼▼▼ Lenis用の基本スタイルを追加 ▼▼▼ */
+html {
+    scroll-behavior: smooth;
+}
+html.lenis {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}
+/* ▲▲▲ */
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -102,7 +124,7 @@ main#app-container {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 6rem 1.5rem 2rem 1.5rem;
+    padding: 2rem 1.5rem; /* 上下のpaddingを調整 */
     position: relative;
     background-color: var(--bg-color-1);
     overflow: hidden;
@@ -558,4 +580,4 @@ body.full-client-body { background-color: var(--bg-main); overflow: hidden; }
     .sidebar-header, #channel-header { padding-left: 10px; }
     #welcome-user-message { font-size: 1.8rem; }
     #embedded-client { height: 70vh; }
-}
+    }
