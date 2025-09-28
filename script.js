@@ -1,7 +1,15 @@
 const API_SERVER_URL = "https://api.yexe.xyz";
 const socket = io(API_SERVER_URL);
 
-let currentSessionId = null; let currentGuildId = null; let currentChannelId = null; let lastMessageAuthorId = null; let currentUser = null; let pendingToken = null; let replyingToMessage = null; let longPressTimer; let isMentionEnabled = false;
+let currentSessionId = null; 
+let currentGuildId = null; 
+let currentChannelId = null; 
+let lastMessageAuthorId = null; 
+let currentUser = null; 
+let pendingToken = null; 
+let replyingToMessage = null; 
+let longPressTimer; 
+let isMentionEnabled = false;
 
 document.addEventListener('DOMContentLoaded', initializeSite);
 
@@ -329,7 +337,7 @@ function selectChannel(channelId, name) {
     loadMessages(messageList);
 }
 
-function loadMessages(messageList) { socket.emit('getMessages', currentChannelId, (messages) => { messageList.innerHTML = ''; lastMessageAuthorId = null; messages.forEach(msg => renderMessage(msg, messageList)); messageList.scrollTop = messageList.scrollHeight; }); }
+function loadMessages(messageList) { socket.emit('getMessages', currentChannelId, (messages) => { messageList.innerHTML = ''; lastMessageAuthorId = null; messages.forEach(msg => renderMessage(msg, messageList)); if (messageList.scrollTop) { messageList.scrollTop = messageList.scrollHeight; } }); }
 
 function createGuildIcon(guild, isDM = false) { 
     const el = document.createElement('div'); el.className = 'guild-item'; 
@@ -342,6 +350,7 @@ function createGuildIcon(guild, isDM = false) {
     el.appendChild(icon); 
     return el; 
 }
+
 function renderMessage(msg, messageList) {
     const isScrolledToBottom = messageList.scrollHeight - messageList.clientHeight <= messageList.scrollTop + 50;
     const el = document.createElement('div'); el.className = 'message'; el.dataset.messageId = msg.id; el.dataset.authorId = msg.author.id; el.dataset.authorUsername = msg.author.username;
@@ -363,8 +372,11 @@ function renderMessage(msg, messageList) {
     lastMessageAuthorId = msg.author.id;
     if (isScrolledToBottom) messageList.scrollTop = messageList.scrollHeight;
 }
+
 function parseDiscordContent(content) { if (!content) return ''; let pText = content; pText = pText.replace(/<a?:(\w+?):(\d+?)>/g, (match, name, id) => `<img class="emoji" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(`https://cdn.discordapp.com/emojis/${id}.${match.startsWith('<a:') ? 'gif' : 'webp'}?size=48`)}" alt=":${name}:">`); pText = pText.replace(/@\[\[(USER|ROLE):(.+?)\]\]/g, (m, t, n) => `<span class="mention">@${n}</span>`); let html = marked.parse(pText, { breaks: true, gfm: true }).trim().replace(/^<p>|<\/p>$/g, ''); return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }); }
+
 function formatTimestamp(date) { const now = new Date(), yday = new Date(now); yday.setDate(yday.getDate() - 1); const pad = (n) => n.toString().padStart(2, '0'); const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`; if (date.toDateString() === now.toDateString()) return time; if (date.toDateString() === yday.toDateString()) return `昨日 ${time}`; return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${time}`; }
+
 function cancelReply(replyIndicator, mentionToggleButton) { replyingToMessage = null; replyIndicator.style.display = 'none'; isMentionEnabled = false; mentionToggleButton.classList.remove('active'); }
 
 socket.on('login-success', ({ sessionId, user }) => { const loginButton = document.getElementById('login-button'); const tokenInput = document.getElementById('token-input'); currentSessionId = sessionId; currentUser = user; const token = tokenInput.value.trim() || document.querySelector(`[data-userid='${user.id}']`)?.dataset.token; if (token) { let history = JSON.parse(localStorage.getItem('discord-client-history') || '[]'); history = history.filter(h => h.id !== user.id); history.unshift({ ...user, token }); localStorage.setItem('discord-client-history', JSON.stringify(history.slice(0, 5))); } tokenInput.value = ""; loginButton.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i>'; loginButton.disabled = false; showEmbeddedClientPreview(user); renderLoginHistory(document.getElementById('login-history')); });
