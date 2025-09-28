@@ -4,11 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Discord Web Token Client | 軽量で高機能なプレビュークライアント</title>
+
     <meta name="description" content="Discordのトークンを使用してブラウザ上で動作する軽量クライアント。サーバーフィルタリングの回避や、メッセージ送信権限付きのプレビュー共有機能を提供します。">
     <meta name="keywords" content="Discord, トークン, クライアント, Webクライアント, discord.js, selfbot, プレビュー, 共有, フィルタリング回避">
     <meta name="author" content="yexe">
     <link rel="canonical" href="https://discord.yexe.xyz/">
     <link rel="icon" href="https://raw.githubusercontent.com/y-exe/sites/refs/heads/main/file/icon.webp" type="image/webp">
+
     <meta property="og:title" content="Discord Web Token Client | 軽量プレビュークライアント">
     <meta property="og:description" content="ブラウザで動作する軽量Discordクライアント。プレビュー共有機能付きで、フィルタリング回避にも。">
     <meta property="og:type" content="website">
@@ -16,12 +18,14 @@
     <meta property="og:image" content="https://raw.githubusercontent.com/y-exe/discord-token-webclient/main/image/d1.png">
     <meta property="og:site_name" content="Discord Web Token Client">
     <meta property="og:locale" content="ja_JP">
+
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@y__exe">
     <meta name="twitter:creator" content="@y__exe">
     <meta name="twitter:title" content="Discord Web Token Client">
     <meta name="twitter:description" content="ブラウザで動作する軽量Discordクライアント。プレビュー共有機能付き。">
     <meta name="twitter:image" content="https://raw.githubusercontent.com/y-exe/discord-token-webclient/main/image/d1.png">
+
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -44,9 +48,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;700&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
 <body>
     <main id="app-container">
@@ -85,9 +86,107 @@
         <section class="content-section">
             <div id="main-page">
                 <main class="main-content-area">
+                    <section class="login-section content-box" id="token-input-section" data-reveal="up">
+                        <h2>Token入力</h2>
+                        <div class="token-input-container">
+                            <input type="password" id="token-input" placeholder="Tokenを入力">
+                            <button id="login-button"><i class="fa-solid fa-right-to-bracket"></i></button>
+                        </div>
+                        <a href="#how-to-get-token" class="help-link">Tokenを取得するには？</a>
+                    </section>
+                    
+                    <section id="history-section" class="content-box" data-reveal="up">
+                        <h3>過去のログ</h3>
+                        <div id="login-history" class="history-grid">
+                            <p class="no-history">過去のログイン履歴はありません。</p>
+                        </div>
+                    </section>
+                    
+                    <div id="client-preview-wrapper" style="display: none;">
+                        <div class="arrow-down" data-reveal="up"><i class="fa-solid fa-circle-arrow-down"></i></div>
+                        
+                        <header class="client-preview-header" data-reveal="up">
+                             <div class="user-info">
+                                <img id="preview-user-avatar" src="" alt="avatar">
+                                <span id="preview-user-name"></span>
+                            </div>
+                            <div class="client-actions">
+                                <button id="new-tab-button" title="新しいタブで開く" class="btn-emphasis"><i class="fa-solid fa-arrow-up-right-from-square"></i> 新しいタブで開く</button>
+                            </div>
+                        </header>
+                        
+                        <div class="client-container" id="embedded-client" data-reveal="up" data-lenis-prevent>
+                            <div class="sidebar" id="guild-list"></div>
+                            <div class="sidebar" id="channel-list-container">
+                                <div id="guild-name-container" class="sidebar-header">サーバーを選択</div>
+                                <ul id="channel-list"></ul>
+                            </div>
+                            <div class="main-content">
+                                <header id="channel-header">
+                                    <button class="mobile-back-button" id="back-to-channels"><i class="fas fa-chevron-left"></i></button>
+                                    <span id="channel-name-text">チャンネルを選択してください</span>
+                                </header>
+                                <div id="message-list-wrapper">
+                                    <div id="message-list">
+                                        <div class="welcome-message">ようこそ！<br>左のサーバーとチャンネルを選択してください。</div>
+                                    </div>
+                                </div>
+                                <footer class="chat-form-container">
+                                    <div id="reply-indicator" style="display: none;">
+                                        <div class="reply-indicator-content">
+                                            <span>返信先: <span id="reply-to-user"></span></span>
+                                            <div class="reply-actions">
+                                                <button id="mention-toggle-button" class="mention-button" title="メンションのON/OFF">@</button>
+                                                <button id="cancel-reply-button">&times;</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <form id="chat-form">
+                                        <input type="text" id="message-input" placeholder="メッセージを送信" autocomplete="off" disabled>
+                                    </form>
+                                </footer>
+                            </div>
+                        </div>
+    
+                        <div class="theme-selector-wrapper content-box" data-reveal="up">
+                            <h3>テーマを選択</h3>
+                            <div class="theme-buttons">
+                                <button class="theme-btn" data-theme="dark" title="ダーク"></button>
+                                <button class="theme-btn" data-theme="okinis" title="オキ二ス"></button>
+                                <button class="theme-btn" data-theme="ash" title="アッシュ"></button>
+                                <button class="theme-btn" data-theme="white" title="ホワイト"></button>
+                            </div>
+                        </div>
+                    </div>
                 </main>
                 
                 <footer class="main-footer">
+                    <section class="content-box" data-reveal="up">
+                        <h3>共有リンクの作成</h3>
+                        <p>現在ログインしているアカウントのビューを、一時的に他の人と共有するリンクを作成できます。</p>
+                        <button id="share-button" class="btn-main btn-primary"><i class="fa-solid fa-link"></i> 共有リンクを作成</button>
+                    </section>
+                    <section class="content-box" data-reveal="up">
+                        <h3>共有リンクを無効にする</h3>
+                        <p>作成した共有リンクのURLを貼り付けて、期限前でも無効化することができます。</p>
+                        <div class="token-input-container" id="invalidate-link-container">
+                            <input type="text" id="invalidate-url-input" placeholder="無効化する共有リンクのURL">
+                            <button id="invalidate-link-button" title="無効化"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                    </section>
+                    <section class="content-box" id="about-this-project" data-reveal="up">
+                        <h3>このプロジェクトについて</h3>
+                        <p>discord.js-selfbot-v13を利用してメッセージの取得をし<br>擬似的にDiscordを再現します<br>元の目的はフィルタリング等の回避のために作られたものです<br>1からデザイン等を制作してるため結構軽いです。ですが機能を削ってるところなども多いです</p>
+                    </section>
+                    <section class="content-box" id="how-to-get-token" data-reveal="up">
+                        <h3>トークンの入手方法</h3>
+                        <div class="how-to-box">
+                            <p>Discordを開き、<br>Web版の場合: <strong>F12</strong> / アプリ版の場合: <strong>Ctrl + Shift + I</strong><br>を押してデベロッパーツールを開きます。</p>
+                            <p><strong>Network</strong> タブを開き、<strong>api</strong> で検索をかけてメッセージ送信またはページ移動をします。</p>
+                            <p>オレンジ色のタブをクリックし、<strong>Headers</strong>タブの中の<strong>authorization</strong>に書いてあるのがTokenです。</p>
+                            <img src="https://paicha.cloud/uploader/new/uploads/2025-09-16/token.webp" alt="トークン取得方法の画像" class="how-to-image">
+                        </div>
+                    </section>
                     <div class="site-footer" data-reveal="up">
                         <p class="footer-site-name">yexe.xyz</p>
                         <p class="footer-copyright">Copyright © 2025 yexe</p>
@@ -145,7 +244,7 @@
             <button id="terms-agree-button" class="btn-main btn-primary" style="width: 100%; justify-content: center;">承知しました</button>
         </div>
     </div>
-
+    
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
     <script src="script.js" defer></script>
