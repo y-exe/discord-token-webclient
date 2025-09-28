@@ -24,8 +24,10 @@ const mentionToggleButton = document.getElementById('mention-toggle-button');
 const welcomeScreen = document.getElementById('welcome-screen');
 const welcomeUserMessage = document.getElementById('welcome-user-message');
 
+// ----- グローバル変数 -----
 let currentSessionId = null; let currentGuildId = null; let currentChannelId = null; let lastMessageAuthorId = null; let currentUser = null; let replyingToMessage = null; let longPressTimer; let isMentionEnabled = false;
 
+// ----- 関数群 -----
 function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); const currentThemeBtn = document.querySelector(`.theme-btn[data-theme="${theme}"]`); if(currentThemeBtn) currentThemeBtn.classList.add('active'); }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -34,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('connect', () => {
         const redirectPath = sessionStorage.getItem('redirectPath');
-        sessionStorage.removeItem('redirectPath');
+        sessionStorage.removeItem('redirectPath'); 
 
         let path = redirectPath || (window.location.hash ? window.location.hash.substring(1) : window.location.pathname);
         
@@ -117,6 +119,10 @@ document.addEventListener('DOMContentLoaded', () => {
             messageContextMenu.style.display = 'none'; 
         });
     }
+
+    if(chatForm) {
+        chatForm.addEventListener('submit', (e) => { e.preventDefault(); const content = messageInput.value.trim(); if (content && currentChannelId) { socket.emit('sendMessage', { channelId: currentChannelId, content, reply: replyingToMessage ? { messageId: replyingToMessage.id, mention: isMentionEnabled } : null }); messageInput.value = ''; cancelReply(); } });
+    }
 });
 
 function loadClientData(initialGuildId, initialChannelId) { loadGuilds(initialGuildId, initialChannelId); }
@@ -127,10 +133,17 @@ function loadGuilds(initialGuildId, initialChannelId) {
         if (currentSessionId !== 'demo') {
             guildList.appendChild(createGuildIcon({ id: '@me', name: 'ダイレクトメッセージ', icon: null }, true));
         }
-        const savedOrder = JSON.parse(localStorage.getItem('guildOrder'));
-        if (savedOrder) { guilds.sort((a, b) => { const iA = savedOrder.indexOf(a.id), iB = savedOrder.indexOf(b.id); if (iA === -1) return 1; if (iB === -1) return -1; return iA - iB; }); }
+        
+        if (currentSessionId !== 'demo') {
+            const savedOrder = JSON.parse(localStorage.getItem('guildOrder'));
+            if (savedOrder) { guilds.sort((a, b) => { const iA = savedOrder.indexOf(a.id), iB = savedOrder.indexOf(b.id); if (iA === -1) return 1; if (iB === -1) return -1; return iA - iB; }); }
+        }
+        
         guilds.forEach(guild => guildList.appendChild(createGuildIcon(guild, false)));
-        new Sortable(guildList, { animation: 150, delay: 200, delayOnTouchOnly: true, onEnd: () => { const newOrder = [...guildList.children].map(item => item.querySelector('.guild-icon').dataset.guildId).filter(id => id !== '@me'); localStorage.setItem('guildOrder', JSON.stringify(newOrder)); } });
+        
+        if (currentSessionId !== 'demo') {
+            new Sortable(guildList, { animation: 150, delay: 200, delayOnTouchOnly: true, onEnd: () => { const newOrder = [...guildList.children].map(item => item.querySelector('.guild-icon').dataset.guildId).filter(id => id !== '@me'); localStorage.setItem('guildOrder', JSON.stringify(newOrder)); } });
+        }
         
         let targetGuildId = initialGuildId;
         if (!targetGuildId) {
@@ -149,7 +162,7 @@ function selectGuild(guildId, name, initialChannelId = null) {
     const guildIconEl = document.querySelector(`[data-guild-id='${guildId}']`);
     if(guildIconEl) guildIconEl.classList.add('active');
     guildNameText.textContent = name; channelNameText.textContent = 'チャンネルを選択';
-    messageList.innerHTML = '';
+    messageList.innerHTML = ''; 
     
     if (currentSessionId === 'demo') {
         messageInput.placeholder = "デモモードではメッセージを送信できません";
@@ -163,7 +176,7 @@ function selectGuild(guildId, name, initialChannelId = null) {
     messageList.style.display = 'none';
     
     if(welcomeScreen){
-        if (guildId === '@me' && currentSessionId !== 'demo') {
+        if ( (guildId === '@me' || !guildId) && currentSessionId !== 'demo') {
              welcomeScreen.style.display = 'flex';
              if (welcomeUserMessage) welcomeUserMessage.textContent = `ようこそ、${currentUser.username} さん！`;
         } else if (currentSessionId !== 'demo') {
@@ -278,7 +291,12 @@ function parseDiscordContent(content) { if (!content) return ''; let pText = con
 
 function formatTimestamp(date) { const now = new Date(), yday = new Date(now); yday.setDate(yday.getDate() - 1); const pad = (n) => n.toString().padStart(2, '0'); const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`; if (date.toDateString() === now.toDateString()) return time; if (date.toDateString() === yday.toDateString()) return `昨日 ${time}`; return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${time}`; }
 
-function updateURL() { let url = `/client/${currentSessionId}`; if (currentGuildId) { url += `/${currentGuildId}`; if (currentChannelId) { url += `/${currentChannelId}`; } } window.history.pushState({ guildId: currentGuildId, channelId: currentChannelId }, '', url); }
+function updateURL() { 
+    if (currentSessionId === 'demo') return;
+    let url = `/client/${currentSessionId}`; 
+    if (currentGuildId) { url += `/${currentGuildId}`; if (currentChannelId) { url += `/${currentChannelId}`; } } 
+    window.history.pushState({ guildId: currentGuildId, channelId: currentChannelId }, '', url); 
+}
 
 function cancelReply() { replyingToMessage = null; replyIndicator.style.display = 'none'; isMentionEnabled = false; mentionToggleButton.classList.remove('active'); }
 
