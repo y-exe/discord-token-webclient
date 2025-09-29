@@ -581,3 +581,36 @@ body.full-client-body { background-color: var(--bg-main); overflow: hidden; }
     #welcome-user-message { font-size: 1.8rem; }
     #embedded-client { height: 70vh; }
     }
+
+/* ===== セッション無効ページ ===== */
+#session-invalid-page {
+    background-color: var(--bg-color-2);
+    width: 100vw;
+    min-height: 100vh;
+}
+.invalid-page-content {
+    text-align: center;
+    color: var(--text-color-2);
+    padding: 2rem 1rem;
+}
+.invalid-icon {
+    font-size: 3rem;
+    color: #f87171; /* red-400 */
+    margin-bottom: 1.5rem;
+}
+.invalid-page-content h1 {
+    font-family: var(--font-geist);
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+}
+.invalid-page-content p {
+    color: var(--text-muted-2);
+    line-height: 1.7;
+    margin-bottom: 2rem;
+}
+
+/* ===== 共有モーダルのスクロール問題修正 ===== */
+.scrollable-list {
+    overscroll-behavior: contain;
+}
