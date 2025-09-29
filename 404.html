@@ -6,9 +6,7 @@
   <script type="text/javascript">
     const path = window.location.pathname;
     const repoName = '/';
-
     sessionStorage.setItem('redirectPath', path);
-
     if (path.startsWith(repoName + 'client/')) {
       window.location.replace(repoName + 'client.html');
     } else if (path.startsWith(repoName + 'share/')) {
