@@ -1,7 +1,6 @@
 const API_SERVER_URL = "https://api.yexe.xyz";
 const socket = io(API_SERVER_URL);
 
-// ----- DOM要素の取得 -----
 const clientPage = document.getElementById('client-page');
 const invalidPage = document.getElementById('session-invalid-page');
 
@@ -23,7 +22,6 @@ const mentionToggleButton = document.getElementById('mention-toggle-button');
 const welcomeScreen = document.getElementById('welcome-screen');
 const welcomeUserMessage = document.getElementById('welcome-user-message');
 
-// ----- グローバル変数 -----
 let currentSessionId = null;
 let currentGuildId = null;
 let currentChannelId = null;
@@ -33,7 +31,6 @@ let replyingToMessage = null;
 let longPressTimer;
 let isMentionEnabled = false;
 
-// ----- 関数群 -----
 function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); const currentThemeBtn = document.querySelector(`.theme-btn[data-theme="${theme}"]`); if(currentThemeBtn) currentThemeBtn.classList.add('active'); }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -68,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (response.success) {
                         if (invalidPage) invalidPage.style.display = 'none';
                         if (clientPage) clientPage.style.display = 'block';
+                        document.body.classList.remove('theme-alt');
                         currentUser = response.user;
                         loadClientData(initialGuildId, initialChannelId);
                     } else {
@@ -141,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeInvalidPage() {
-    document.body.classList.add('theme-alt'); // 背景色を合わせる
+    document.body.classList.add('theme-alt');
     const tokenInput = document.getElementById('token-input-invalid');
     const loginButton = document.getElementById('login-button-invalid');
     const loginHistoryContainer = document.getElementById('login-history-invalid');
@@ -180,10 +178,12 @@ function initializeInvalidPage() {
         }
     });
 
+    socket.off('login-success');
     socket.on('login-success', ({ sessionId }) => {
         window.location.hash = `client/${sessionId}`;
         window.location.reload();
     });
+     socket.off('login-error');
      socket.on('login-error', (msg) => {
         alert(`ログイン失敗: ${msg}`);
         loginButton.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i>';
@@ -206,7 +206,7 @@ function loadGuilds(initialGuildId, initialChannelId) {
         
         guilds.forEach(guild => guildList.appendChild(createGuildIcon(guild, false)));
         
-        if (currentSessionId !== 'demo') {
+        if (currentSessionId !== 'demo' && guildList) {
             new Sortable(guildList, { animation: 150, delay: 200, delayOnTouchOnly: true, onEnd: () => { const newOrder = [...guildList.children].map(item => item.querySelector('.guild-icon').dataset.guildId).filter(id => id !== '@me'); localStorage.setItem('guildOrder', JSON.stringify(newOrder)); } });
         }
         
@@ -301,10 +301,10 @@ function selectChannel(channelId, name) {
     
     clientContainer.classList.add('show-messages');
     updateURL();
-    loadMessages(channelId);
+    loadMessages();
 }
 
-function loadMessages(channelId) { socket.emit('getMessages', channelId, (messages) => { messageList.innerHTML = ''; lastMessageAuthorId = null; messages.forEach(renderMessage); messageList.scrollTop = messageList.scrollHeight; }); }
+function loadMessages() { socket.emit('getMessages', currentChannelId, (messages) => { messageList.innerHTML = ''; lastMessageAuthorId = null; messages.forEach(renderMessage); messageList.scrollTop = messageList.scrollHeight; }); }
 
 function createGuildIcon(guild, isDM = false) { 
     const el = document.createElement('div'); el.className = 'guild-item'; 
