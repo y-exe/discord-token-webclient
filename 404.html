@@ -5,16 +5,18 @@
   <title>リダイレクト中...</title>
   <script type="text/javascript">
     const path = window.location.pathname;
+    const repoName = '/';
 
     sessionStorage.setItem('redirectPath', path);
 
-
-    if (path.startsWith('/client/')) {
-      window.location.replace('/client.html');
-    } else if (path.startsWith('/share/')) {
-      window.location.replace('/share.html');
+    if (path.startsWith(repoName + 'client/')) {
+      window.location.replace(repoName + 'client.html');
+    } else if (path.startsWith(repoName + 'share/')) {
+      window.location.replace(repoName + 'share.html');
+    } else if (path.startsWith(repoName + 'demo')) {
+      window.location.replace(repoName + 'demo.html');
     } else {
-      window.location.replace('/');
+      window.location.replace(repoName);
     }
   </script>
 </head>
