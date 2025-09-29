@@ -541,7 +541,7 @@ body.full-client-body { background-color: var(--bg-main); overflow: hidden; }
 #share-expiry { width: 100%; padding: 0.8rem 1rem; border-radius: 8px; border: 1px solid var(--card-border-color); background-color: var(--bg-color-2); font-family: var(--font-zen); font-size: 1rem; -webkit-appearance: none; -moz-appearance: none; appearance: none; }
 .checkbox-label { display: flex; align-items: center; gap: 0.8em; padding: 0.8rem 1rem; border-radius: 8px; background-color: var(--bg-color-2); cursor: pointer; }
 .checkbox-label input { width: 1.2em; height: 1.2em; accent-color: var(--active-text); }
-.scrollable-list { max-height: 150px; overflow-y: auto; background-color: var(--bg-color-2); padding: 10px; border-radius: 8px; border: 1px solid var(--card-border-color); text-align: left; }
+.scrollable-list { max-height: 150px; overflow-y: auto; background-color: var(--bg-color-2); padding: 10px; border-radius: 8px; border: 1px solid var(--card-border-color); text-align: left; overscroll-behavior: contain;}
 .scrollable-list .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--active-btn-primary-bg); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 2rem auto; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 .modal-submit-btn { width: 100%; justify-content: center; }
