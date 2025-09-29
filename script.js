@@ -1,21 +1,13 @@
-// =================================================================================
-// script.js (for index.html) - Syntax Error Fixed (Final)
-// =================================================================================
-
 const API_SERVER_URL = "https://api.yexe.xyz";
 const socket = io(API_SERVER_URL);
 
-// ----- グローバル変数 -----
 let currentSessionId = null; 
 let currentUser = null; 
 let pendingToken = null; 
 
-// ----- 初期化のトリガー -----
 document.addEventListener('DOMContentLoaded', initializeSite);
 
-// ----- メイン初期化関数 -----
 function initializeSite() {
-    // --- DOM要素の取得 ---
     const tokenInput = document.getElementById('token-input');
     const loginButton = document.getElementById('login-button');
     const loginHistoryContainer = document.getElementById('login-history');
@@ -30,15 +22,10 @@ function initializeSite() {
         return;
     }
 
-    // --- Lenis (滑らかスクロール) ---
     const lenis = new Lenis();
-    function raf(time) {
-        lenis.raf(time);
-        requestAnimationFrame(raf);
-    }
+    function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
     requestAnimationFrame(raf);
 
-    // --- アニメーション設定 ---
     function setupSplitText() {
         document.querySelectorAll('[data-split-text]').forEach(el => {
             if (el.classList.contains('is-ready')) return;
@@ -68,10 +55,8 @@ function initializeSite() {
     const scrollTrigger = document.getElementById('scroll-trigger');
     if (scrollTrigger) {
         const themeObserver = new IntersectionObserver((entries) => {
-            entries.forEach((entry) => {
-                const isPastTrigger = entry.boundingClientRect.top < 0 && !entry.isIntersecting;
-                document.body.classList.toggle('theme-alt', isPastTrigger);
-            });
+            const isPastTrigger = entries[0].boundingClientRect.top < 0 && !entries[0].isIntersecting;
+            document.body.classList.toggle('theme-alt', isPastTrigger);
         }, { root: null, threshold: 0 });
         themeObserver.observe(scrollTrigger);
     }
@@ -86,26 +71,21 @@ function initializeSite() {
             e.stopPropagation();
             const item = deleteButton.closest('.history-item');
             if (item) {
-                const userIdToDelete = item.dataset.userid;
                 let history = JSON.parse(localStorage.getItem('discord-client-history') || '[]');
-                history = history.filter(acc => acc.id !== userIdToDelete);
+                history = history.filter(acc => acc.id !== item.dataset.userid);
                 localStorage.setItem('discord-client-history', JSON.stringify(history));
                 renderLoginHistory(loginHistoryContainer);
             }
         } else {
             const item = e.target.closest('.history-item');
-            if (item) attemptLogin(item.dataset.token, loginButton);
+            if (item) attemptLogin(item.dataset.token, loginButton, false);
         }
     });
     
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
             e.preventDefault();
-            const targetId = this.getAttribute('href');
-            lenis.scrollTo(targetId, {
-                duration: 1.5,
-                easing: (t) => t === 1 ? 1 : 1 - Math.pow(2, -10 * t),
-            });
+            lenis.scrollTo(this.getAttribute('href'), { duration: 1.5 });
         });
     });
 
@@ -117,7 +97,7 @@ function initializeSite() {
             if (pendingToken) { 
                 loginButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; 
                 loginButton.disabled = true; 
-                socket.emit('login', pendingToken); 
+                socket.emit('login', { token: pendingToken, isPreview: false });
                 pendingToken = null; 
             } 
         });
@@ -170,7 +150,7 @@ function initializeSite() {
         });
     }
 
-    loginButton.addEventListener('click', () => attemptLogin(tokenInput.value.trim(), loginButton));
+    loginButton.addEventListener('click', () => attemptLogin(tokenInput.value.trim(), loginButton, false));
     newTabButton.addEventListener('click', () => { 
         if (currentSessionId) { 
             const gPath = document.getElementById('embedded-client').dataset.currentGuildId || '';
@@ -179,8 +159,6 @@ function initializeSite() {
         } 
     });
 }
-
-// ----- 関数群 -----
 
 function renderLoginHistory(loginHistoryContainer) {
     const history = JSON.parse(localStorage.getItem('discord-client-history') || '[]');
@@ -203,18 +181,19 @@ function renderLoginHistory(loginHistoryContainer) {
     }
 }
 
-function attemptLogin(token, loginButton) { 
+function attemptLogin(token, loginButton, isPreview) { 
     if (!token) return; 
+    const termsModal = document.getElementById('terms-modal');
     const history = JSON.parse(localStorage.getItem('discord-client-history') || '[]'); 
     const isFirstTime = !history.some(acc => acc.token === token); 
-    const termsModal = document.getElementById('terms-modal');
-    if (isFirstTime && termsModal) { 
+    
+    if (isFirstTime && !isPreview && termsModal) { 
         pendingToken = token; 
         termsModal.classList.add('visible'); 
     } else { 
         loginButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; 
         loginButton.disabled = true; 
-        socket.emit('login', token); 
+        socket.emit('login', { token: token, isPreview: isPreview }); 
     } 
 }
 
@@ -222,6 +201,7 @@ function showEmbeddedClientPreview(user) {
     const previewUserAvatar = document.getElementById('preview-user-avatar');
     const previewUserName = document.getElementById('preview-user-name');
     const clientPreviewWrapper = document.getElementById('client-preview-wrapper');
+    const loginButton = document.getElementById('login-button'); 
 
     previewUserAvatar.src = `${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(user.avatar)}`;
     previewUserName.textContent = user.username;
@@ -231,28 +211,39 @@ function showEmbeddedClientPreview(user) {
         clientPreviewWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
     
-    initializeEmbeddedClient(socket);
+    let history = JSON.parse(localStorage.getItem('discord-client-history') || '[]');
+    const userData = history.find(h => h.id === user.id);
+    if(userData && userData.token) {
+        attemptLogin(userData.token, loginButton, true);
+    }
 }
 
-// ----- Socket.IO イベントリスナー -----
 socket.on('login-success', ({ sessionId, user }) => { 
-    const loginButton = document.getElementById('login-button'); 
-    const tokenInput = document.getElementById('token-input'); 
+    const loginButton = document.getElementById('login-button');
+    const tokenInput = document.getElementById('token-input');
+    const clientPreviewWrapper = document.getElementById('client-preview-wrapper');
     const loginHistoryContainer = document.getElementById('login-history');
-    currentSessionId = sessionId; 
-    currentUser = user; 
-    const token = tokenInput.value.trim() || document.querySelector(`[data-userid='${user.id}']`)?.dataset.token; 
-    if (token) { 
-        let history = JSON.parse(localStorage.getItem('discord-client-history') || '[]'); 
-        history = history.filter(h => h.id !== user.id); 
-        history.unshift({ ...user, token }); 
-        localStorage.setItem('discord-client-history', JSON.stringify(history.slice(0, 5))); 
-    } 
-    tokenInput.value = ""; 
-    loginButton.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i>'; 
-    loginButton.disabled = false; 
-    showEmbeddedClientPreview(user); 
-    renderLoginHistory(loginHistoryContainer); 
+    
+    const isPreviewLogin = clientPreviewWrapper.style.display === 'block' && currentSessionId !== null;
+
+    if (isPreviewLogin) {
+        initializeEmbeddedClient(socket, sessionId, user);
+    } else {
+        currentSessionId = sessionId; 
+        currentUser = user; 
+        const token = tokenInput.value.trim() || document.querySelector(`[data-userid='${user.id}']`)?.dataset.token; 
+        if (token) { 
+            let history = JSON.parse(localStorage.getItem('discord-client-history') || '[]'); 
+            history = history.filter(h => h.id !== user.id); 
+            history.unshift({ ...user, token }); 
+            localStorage.setItem('discord-client-history', JSON.stringify(history.slice(0, 5))); 
+        } 
+        tokenInput.value = ""; 
+        loginButton.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i>'; 
+        loginButton.disabled = false; 
+        showEmbeddedClientPreview(user); 
+        renderLoginHistory(loginHistoryContainer);
+    }
 });
 socket.on('login-error', (msg) => { 
     const loginButton = document.getElementById('login-button'); 
@@ -261,16 +252,14 @@ socket.on('login-error', (msg) => {
     loginButton.disabled = false; 
 });
 
-
-// =================================================================================
-// embedded_client.js (動的に初期化されるプレビュー用スクリプト)
-// =================================================================================
-function initializeEmbeddedClient(socket) {
+function initializeEmbeddedClient(socket, sessionId, user) {
     const embeddedClient = document.getElementById('embedded-client');
     if (embeddedClient.dataset.initialized === 'true') {
+        embeddedClient.dataset.previewSessionId = sessionId;
         return;
     }
     embeddedClient.dataset.initialized = 'true';
+    embeddedClient.dataset.previewSessionId = sessionId;
 
     const guildList = embeddedClient.querySelector('#guild-list');
     const channelList = embeddedClient.querySelector('#channel-list');
@@ -292,7 +281,6 @@ function initializeEmbeddedClient(socket) {
     let localReplyingToMessage = null;
     let localIsMentionEnabled = false;
 
-    // --- ▼▼▼ ここから欠落していた関数定義をすべて追加 ▼▼▼ ---
     function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); const currentThemeBtn = document.querySelector(`.theme-btn[data-theme="${theme}"]`); if(currentThemeBtn) currentThemeBtn.classList.add('active'); }
     function cancelReply() { localReplyingToMessage = null; replyIndicator.style.display = 'none'; localIsMentionEnabled = false; mentionToggleButton.classList.remove('active'); }
     
@@ -353,7 +341,7 @@ function initializeEmbeddedClient(socket) {
             messageList.innerHTML = ''; 
             localLastMessageAuthorId = null; 
             messages.forEach(renderMessage); 
-            messageList.scrollTop = messageList.scrollHeight; 
+            if (messageList.scrollTop) messageList.scrollTop = messageList.scrollHeight; 
         }); 
     }
 
@@ -394,22 +382,21 @@ function initializeEmbeddedClient(socket) {
     function parseDiscordContent(content) { if (!content) return ''; let pText = content; pText = pText.replace(/<a?:(\w+?):(\d+?)>/g, (match, name, id) => `<img class="emoji" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(`https://cdn.discordapp.com/emojis/${id}.${match.startsWith('<a:') ? 'gif' : 'webp'}?size=48`)}" alt=":${name}:">`); pText = pText.replace(/@\[\[(USER|ROLE):(.+?)\]\]/g, (m, t, n) => `<span class="mention">@${n}</span>`); let html = marked.parse(pText, { breaks: true, gfm: true }).trim().replace(/^<p>|<\/p>$/g, ''); return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }); }
     
     function formatTimestamp(date) { const now = new Date(), yday = new Date(now); yday.setDate(yday.getDate() - 1); const pad = (n) => n.toString().padStart(2, '0'); const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`; if (date.toDateString() === now.toDateString()) return time; if (date.toDateString() === yday.toDateString()) return `昨日 ${time}`; return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${time}`; }
-    // --- ▲▲▲ ---
 
-    // --- イベントリスナー ---
     backToChannelsButton.addEventListener('click', () => embeddedClient.classList.remove('show-messages'));
     chatForm.addEventListener('submit', (e) => { e.preventDefault(); const content = messageInput.value.trim(); if (content && localCurrentChannelId) { socket.emit('sendMessage', { channelId: localCurrentChannelId, content, reply: localReplyingToMessage ? { messageId: localReplyingToMessage.id, mention: localIsMentionEnabled } : null }); messageInput.value = ''; cancelReply(); } });
     cancelReplyButton.addEventListener('click', cancelReply);
     mentionToggleButton.addEventListener('click', () => { localIsMentionEnabled = !localIsMentionEnabled; mentionToggleButton.classList.toggle('active', localIsMentionEnabled); });
     if (themeButtons) themeButtons.addEventListener('click', (e) => { if (e.target.classList.contains('theme-btn')) applyTheme(e.target.dataset.theme); });
     
-    // --- Socket.IOリスナー ---
-    socket.off('newMessage');
-    socket.on('newMessage', (msg) => { if (msg.channelId === localCurrentChannelId) { if (!messageList.querySelector(`.message[data-message-id='${msg.id}']`)) renderMessage(msg); } });
-    socket.off('messageDeleted');
-    socket.on('messageDeleted', ({ channelId, messageId }) => { if (channelId === localCurrentChannelId) { const msgEl = embeddedClient.querySelector(`.message[data-message-id='${messageId}']`); if (msgEl) msgEl.remove(); } });
+    const messageHandler = (msg) => { if (msg.channelId === localCurrentChannelId) { if (!messageList.querySelector(`.message[data-message-id='${msg.id}']`)) renderMessage(msg); } };
+    const deleteHandler = ({ channelId, messageId }) => { if (channelId === localCurrentChannelId) { const msgEl = embeddedClient.querySelector(`.message[data-message-id='${messageId}']`); if (msgEl) msgEl.remove(); } };
 
-    // --- 初期化実行 ---
+    socket.off('newMessage', messageHandler); 
+    socket.on('newMessage', messageHandler);
+    socket.off('messageDeleted', deleteHandler);
+    socket.on('messageDeleted', deleteHandler);
+
     socket.emit('getGuilds', (guilds) => {
         guildList.innerHTML = '';
         guildList.appendChild(createGuildIcon({ id: '@me', name: 'ダイレクトメッセージ', icon: null }, true));
