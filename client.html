@@ -38,7 +38,7 @@
     </div>
 
     <div id="client-page" class="full-client-page" style="display: none;">
-        <div class="client-container" id="full-client-container" data-lenis-prevent>
+        <div class="client-container" id="full-client-container">
             <div class="sidebar" id="guild-list"></div>
             <div class="sidebar" id="channel-list-container">
                 <div id="guild-name-container" class="sidebar-header">
@@ -53,7 +53,7 @@
                     <span id="channel-name-text">チャンネルを選択してください</span>
                 </header>
                 <div id="message-list-wrapper">
-                    <div id="welcome-screen" style="display: none;">
+                    <div id="welcome-screen" style="display: flex;">
                         <div class="welcome-content">
                             <h1 id="welcome-user-message"></h1>
                             <div class="theme-selector-wrapper">
@@ -67,9 +67,7 @@
                             </div>
                         </div>
                     </div>
-                    <div id="message-list">
-                        <div class="welcome-message">接続中...</div>
-                    </div>
+                    <div id="message-list"></div>
                 </div>
                 <footer class="chat-form-container">
                     <div id="reply-indicator" style="display: none;">
