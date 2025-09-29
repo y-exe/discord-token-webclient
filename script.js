@@ -292,7 +292,7 @@ function initializeEmbeddedClient(socket, sessionId, user) {
         embeddedClient.querySelector(`[data-guild-id='${guildId}']`).classList.add('active');
         guildNameContainer.textContent = name;
         channelNameText.textContent = 'チャンネルを選択';
-        messageList.innerHTML = '<div class="welcome-message">サーバーとチャンネルを選択してください</div>';
+        messageList.innerHTML = '<div class="welcome-message">ようこそ！<br>左のサーバーとチャンネルを選択してください。</div>';
         messageInput.disabled = true;
         channelList.innerHTML = '';
         embeddedClient.classList.remove('show-messages');
@@ -307,6 +307,12 @@ function initializeEmbeddedClient(socket, sessionId, user) {
                 if (cat.name) { const catEl = document.createElement('div'); catEl.className = 'channel-category'; catEl.textContent = cat.name; channelList.appendChild(catEl); }
                 cat.channels.forEach(ch => { const el = document.createElement('li'); el.className = 'channel-item'; el.innerHTML = `<span class="channel-prefix">#</span> ${ch.name}`; el.dataset.channelId = ch.id; el.addEventListener('click', () => selectChannel(ch.id, ch.name)); channelList.appendChild(el); });
             });
+             if (window.innerWidth > 768) {
+                const firstChannel = categories[0]?.channels[0];
+                if (firstChannel) {
+                    selectChannel(firstChannel.id, firstChannel.name);
+                }
+            }
         });
     }
     
