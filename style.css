@@ -656,3 +656,62 @@ body.full-client-body { background-color: var(--bg-main); overflow: hidden; }
 .scrollable-list {
     overscroll-behavior: contain;
 }
+
+/* セッション無効ページのレイアウト修正 */
+#session-invalid-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+/* ページ全体のコンテナ */
+#session-invalid-page #main-page {
+    width: 100%;
+    max-width: 900px;
+    padding: 2rem 1rem; /* パディングを調整 */
+}
+
+/* 中央のコンテンツエリア */
+#session-invalid-page .main-content-area {
+    width: 100%;
+    max-width: 500px; /* コンテンツの最大幅を制限 */
+    margin: 0 auto;   /* 中央揃え */
+}
+
+.invalid-page-content {
+    text-align: center;
+    color: var(--text-color-2);
+}
+
+.invalid-icon {
+    font-size: 3rem;
+    color: #f87171;
+    margin-bottom: 1.5rem;
+}
+
+.invalid-page-content h1 {
+    font-family: var(--font-geist);
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+}
+
+.invalid-page-content p {
+    color: var(--text-muted-2);
+    line-height: 1.7;
+    margin-bottom: 2rem;
+}
+
+/* 履歴がない場合のローダー/メッセージ用 */
+#login-history-invalid .loader {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--active-btn-primary-bg);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    animation: spin 1s linear infinite;
+    margin: 2rem auto;
+}
