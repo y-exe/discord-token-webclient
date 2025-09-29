@@ -411,5 +411,3 @@ function showMessageContextMenu(e) { e.preventDefault(); if (!messageContextMenu
 socket.on('newMessage', (msg) => { if (msg.channelId === currentChannelId) { if (!document.querySelector(`.message[data-message-id='${msg.id}']`)) renderMessage(msg); } });
 
 socket.on('messageDeleted', ({ channelId, messageId }) => { if (channelId === currentChannelId) { const msgEl = document.querySelector(`.message[data-message-id='${messageId}']`); if (msgEl) msgEl.remove(); } });
-
-socket.on('messageDeleted', ({ channelId, messageId }) => { if (channelId === currentChannelId) { const msgEl = document.querySelector(`.message[data-message-id='${messageId}']`); if (msgEl) msgEl.remove(); } });```
