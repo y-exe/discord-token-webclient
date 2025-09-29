@@ -43,7 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let path = redirectPath || (window.location.hash ? window.location.hash.substring(1) : window.location.pathname);
         
-        if (window.location.pathname.endsWith('/demo.html')) {
+        if (path.startsWith('/demo')) {
+            path = 'client' + path;
+        } else if (window.location.pathname.endsWith('/demo.html') && (!redirectPath || ['/demo.html', '/demo'].includes(redirectPath))) {
             path = 'client/demo';
         }
 
@@ -61,19 +63,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const initialChannelId = pathParts[3];
 
             if (currentSessionId) {
-                socket.emit('authenticate', currentSessionId, (response) => {
-                    if (response.success) {
-                        if (invalidPage) invalidPage.style.display = 'none';
-                        if (clientPage) clientPage.style.display = 'block';
-                        document.body.classList.remove('theme-alt');
-                        currentUser = response.user;
-                        loadClientData(initialGuildId, initialChannelId);
-                    } else {
-                        if (clientPage) clientPage.style.display = 'none';
-                        if (invalidPage) invalidPage.style.display = 'flex';
-                        initializeInvalidPage();
-                    }
-                });
+                if (currentSessionId === 'demo') {
+                    if (invalidPage) invalidPage.style.display = 'none';
+                    if (clientPage) clientPage.style.display = 'block';
+                    document.body.classList.remove('theme-alt');
+                    currentUser = { username: 'Demo User' };
+                    loadClientData(initialGuildId, initialChannelId);
+                } else {
+                    socket.emit('authenticate', currentSessionId, (response) => {
+                        if (response.success) {
+                            if (invalidPage) invalidPage.style.display = 'none';
+                            if (clientPage) clientPage.style.display = 'block';
+                            document.body.classList.remove('theme-alt');
+                            currentUser = response.user;
+                            loadClientData(initialGuildId, initialChannelId);
+                        } else {
+                            if (clientPage) clientPage.style.display = 'none';
+                            if (invalidPage) invalidPage.style.display = 'flex';
+                            initializeInvalidPage();
+                        }
+                    });
+                }
             }
         } else {
             if (clientPage) clientPage.style.display = 'none';
@@ -186,6 +196,7 @@ function initializeInvalidPage() {
     const onLoginError = (msg) => {
         alert(`ログイン失敗: ${msg}`);
         loginButton.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i>';
+        renderHistoryForInvalid();
     };
 
     socket.off('login-success').on('login-success', onLoginSuccess);
@@ -197,9 +208,7 @@ function loadClientData(initialGuildId, initialChannelId) { loadGuilds(initialGu
 function loadGuilds(initialGuildId, initialChannelId) {
     socket.emit('getGuilds', (guilds) => {
         guildList.innerHTML = '';
-        if (currentSessionId !== 'demo') {
-            guildList.appendChild(createGuildIcon({ id: '@me', name: 'ダイレクトメッセージ', icon: null }, true));
-        }
+        guildList.appendChild(createGuildIcon({ id: '@me', name: 'ダイレクトメッセージ', icon: null }, true));
         
         if (currentSessionId !== 'demo') {
             const savedOrder = JSON.parse(localStorage.getItem('guildOrder'));
@@ -212,10 +221,7 @@ function loadGuilds(initialGuildId, initialChannelId) {
             new Sortable(guildList, { animation: 150, delay: 200, delayOnTouchOnly: true, onEnd: () => { const newOrder = [...guildList.children].map(item => item.querySelector('.guild-icon').dataset.guildId).filter(id => id !== '@me'); localStorage.setItem('guildOrder', JSON.stringify(newOrder)); } });
         }
         
-        let targetGuildId = initialGuildId;
-        if (!targetGuildId) {
-            targetGuildId = (currentSessionId === 'demo') ? guilds[0]?.id : '@me';
-        }
+        let targetGuildId = initialGuildId || '@me';
 
         const guildData = guilds.find(g => g.id === targetGuildId) || { id: targetGuildId, name: 'ダイレクトメッセージ' };
         selectGuild(targetGuildId, guildData.name, initialChannelId);
@@ -243,10 +249,12 @@ function selectGuild(guildId, name, initialChannelId = null) {
     messageList.style.display = 'none';
     
     if(welcomeScreen){
-        if ( (guildId === '@me' || !guildId) && currentSessionId !== 'demo') {
+        if (guildId === '@me' || !guildId) {
              welcomeScreen.style.display = 'flex';
-             if (welcomeUserMessage) welcomeUserMessage.textContent = `ようこそ、${currentUser.username} さん！`;
-        } else if (currentSessionId !== 'demo') {
+             if (currentSessionId !== 'demo' && welcomeUserMessage && currentUser) {
+                 welcomeUserMessage.textContent = `ようこそ、${currentUser.username} さん！`;
+             }
+        } else {
             welcomeScreen.style.display = 'none';
         }
     }
@@ -255,6 +263,8 @@ function selectGuild(guildId, name, initialChannelId = null) {
 
     if (guildId === '@me' && currentSessionId !== 'demo') { 
         loadDms(initialChannelId);
+    } else if (guildId === '@me' && currentSessionId === 'demo') {
+        channelList.innerHTML = ''; // Demo DM has no channels
     } else { 
         loadChannels(guildId, initialChannelId); 
     }
@@ -268,7 +278,15 @@ function loadChannels(guildId, initialChannelId = null) {
             if (cat.name) { const catEl = document.createElement('div'); catEl.className = 'channel-category'; catEl.textContent = cat.name; channelList.appendChild(catEl); }
             cat.channels.forEach(ch => { const el = document.createElement('li'); el.className = 'channel-item'; el.innerHTML = `<span class="channel-prefix">#</span> ${ch.name}`; el.dataset.channelId = ch.id; el.addEventListener('click', () => selectChannel(ch.id, ch.name)); channelList.appendChild(el); });
         });
-        if (initialChannelId) { const channel = categories.flatMap(c => c.channels).find(ch => ch.id === initialChannelId); if (channel) selectChannel(channel.id, channel.name); }
+        if (initialChannelId) { 
+            const channel = categories.flatMap(c => c.channels).find(ch => ch.id === initialChannelId); 
+            if (channel) selectChannel(channel.id, channel.name); 
+        } else if (window.innerWidth > 768) {
+            const firstChannel = categories[0]?.channels[0];
+            if (firstChannel) {
+                selectChannel(firstChannel.id, firstChannel.name);
+            }
+        }
     });
 }
 
@@ -358,11 +376,27 @@ function parseDiscordContent(content) { if (!content) return ''; let pText = con
 
 function formatTimestamp(date) { const now = new Date(), yday = new Date(now); yday.setDate(yday.getDate() - 1); const pad = (n) => n.toString().padStart(2, '0'); const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`; if (date.toDateString() === now.toDateString()) return time; if (date.toDateString() === yday.toDateString()) return `昨日 ${time}`; return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${time}`; }
 
-function updateURL() { 
-    if (currentSessionId === 'demo') return;
-    let url = `/client/${currentSessionId}`; 
-    if (currentGuildId) { url += `/${currentGuildId}`; if (currentChannelId) { url += `/${currentChannelId}`; } } 
-    window.history.pushState({ guildId: currentGuildId, channelId: currentChannelId }, '', url); 
+function updateURL() {
+    let url;
+    if (currentSessionId === 'demo') {
+        url = '/demo';
+        if (currentGuildId) {
+            url += `/${currentGuildId}`;
+            if (currentChannelId) { url += `/${currentChannelId}`; }
+        }
+    } else if (currentSessionId) {
+        url = `/client/${currentSessionId}`;
+        if (currentGuildId) {
+            url += `/${currentGuildId}`;
+            if (currentChannelId) { url += `/${currentChannelId}`; }
+        }
+    } else {
+        return;
+    }
+    
+    if (url !== window.location.pathname) {
+        window.history.pushState({ guildId: currentGuildId, channelId: currentChannelId }, '', url);
+    }
 }
 
 function cancelReply() { replyingToMessage = null; replyIndicator.style.display = 'none'; isMentionEnabled = false; mentionToggleButton.classList.remove('active'); }
