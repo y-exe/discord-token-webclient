@@ -1,6 +1,11 @@
+// =================================================================================
+// share.js (for share.html) - Final Corrected Version
+// =================================================================================
+
 const API_SERVER_URL = "https://api.yexe.xyz";
 const socket = io(API_SERVER_URL);
 
+// ----- DOM要素の取得 (share.htmlに存在する要素のみ) -----
 const clientPage = document.getElementById('client-page');
 const loadingPage = document.getElementById('loading-page');
 const errorPage = document.getElementById('error-page');
@@ -19,6 +24,7 @@ const replyToUser = document.getElementById('reply-to-user');
 const cancelReplyButton = document.getElementById('cancel-reply-button');
 const mentionToggleButton = document.getElementById('mention-toggle-button');
 
+// ----- グローバル変数 -----
 let shareId, initialGuildId, initialChannelId;
 let currentGuildId = null;
 let currentChannelId = null;
@@ -27,6 +33,7 @@ let lastMessageAuthorId = null;
 let replyingToMessage = null;
 let isMentionEnabled = false;
 
+// ----- 関数群 -----
 function applyTheme(theme) {
     document.body.dataset.theme = theme;
     localStorage.setItem('discord-theme', theme);
