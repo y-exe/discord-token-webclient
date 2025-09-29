@@ -1,11 +1,6 @@
-// =================================================================================
-// client.js (for client.html and demo.html) - Final Corrected Version
-// =================================================================================
-
 const API_SERVER_URL = "https://api.yexe.xyz";
 const socket = io(API_SERVER_URL);
 
-// ----- DOM要素の取得 -----
 const clientPage = document.getElementById('client-page');
 const invalidPage = document.getElementById('session-invalid-page');
 
@@ -27,7 +22,6 @@ const mentionToggleButton = document.getElementById('mention-toggle-button');
 const welcomeScreen = document.getElementById('welcome-screen');
 const welcomeUserMessage = document.getElementById('welcome-user-message');
 
-// ----- グローバル変数 -----
 let currentSessionId = null;
 let currentGuildId = null;
 let currentChannelId = null;
@@ -37,7 +31,6 @@ let replyingToMessage = null;
 let longPressTimer;
 let isMentionEnabled = false;
 
-// ----- 関数群 -----
 function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); const currentThemeBtn = document.querySelector(`.theme-btn[data-theme="${theme}"]`); if(currentThemeBtn) currentThemeBtn.classList.add('active'); }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -185,7 +178,6 @@ function initializeInvalidPage() {
         }
     });
     
-    // ▼▼▼ 再ログイン成功時のリスナーを一度だけ設定 ▼▼▼
     const onLoginSuccess = ({ sessionId }) => {
         window.location.hash = `client/${sessionId}`;
         window.location.reload();
