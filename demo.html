@@ -50,6 +50,15 @@
                     <div id="message-list"></div>
                 </div>
                 <footer class="chat-form-container">
+                    <div id="reply-indicator" style="display: none;">
+                        <div class="reply-indicator-content">
+                            <span>返信先: <span id="reply-to-user"></span></span>
+                            <div class="reply-actions">
+                                <button id="mention-toggle-button" class="mention-button" title="メンションのON/OFF">@</button>
+                                <button id="cancel-reply-button">&times;</button>
+                            </div>
+                        </div>
+                    </div>
                     <form id="chat-form">
                         <input type="text" id="message-input" placeholder="デモモードではメッセージを送信できません" autocomplete="off" disabled>
                     </form>
@@ -59,6 +68,6 @@
     </div>
     
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="client.js"></script>
+    <script src="client.js" defer></script>
 </body>
 </html>
