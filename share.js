@@ -1,75 +1,92 @@
 const API_SERVER_URL = "https://api.yexe.xyz";
-
 const socket = io(API_SERVER_URL);
 
-const clientContainer = document.getElementById('full-client-container');
 const clientPage = document.getElementById('client-page');
 const loadingPage = document.getElementById('loading-page');
+const errorPage = document.getElementById('error-page');
+
+const clientContainer = document.getElementById('full-client-container');
 const guildList = document.getElementById('guild-list');
 const guildNameText = document.getElementById('guild-name-text');
-const channelListContainer = document.getElementById('channel-list-container');
 const channelList = document.getElementById('channel-list');
-const mainContent = document.getElementById('main-content');
 const messageList = document.getElementById('message-list');
 const channelNameText = document.getElementById('channel-name-text');
 const chatForm = document.getElementById('chat-form');
 const messageInput = document.getElementById('message-input');
-const backToGuildsButton = document.getElementById('back-to-guilds');
 const backToChannelsButton = document.getElementById('back-to-channels');
 const welcomeScreen = document.getElementById('welcome-screen');
 const welcomeUserMessage = document.getElementById('welcome-user-message');
-const guildContextMenu = document.getElementById('guild-context-menu');
-const messageContextMenu = document.getElementById('message-context-menu');
 const replyIndicator = document.getElementById('reply-indicator');
 const replyToUser = document.getElementById('reply-to-user');
 const cancelReplyButton = document.getElementById('cancel-reply-button');
 const mentionToggleButton = document.getElementById('mention-toggle-button');
 
 let shareId, initialGuildId, initialChannelId;
-let currentGuildId = null; let currentChannelId = null; let permissions = {}; let lastMessageAuthorId = null; let longPressTimer; let replyingToMessage = null; let isMentionEnabled = false;
+let currentGuildId = null;
+let currentChannelId = null;
+let permissions = {};
+let lastMessageAuthorId = null;
+let replyingToMessage = null;
+let isMentionEnabled = false;
 
-function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); document.querySelector(`.theme-btn[data-theme="${theme}"]`)?.classList.add('active'); }
+function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); const currentThemeBtn = document.querySelector(`.theme-btn[data-theme="${theme}"]`); if(currentThemeBtn) currentThemeBtn.classList.add('active'); }
 
 document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('discord-theme') || 'dark';
     applyTheme(savedTheme);
 
-
     const redirectPath = sessionStorage.getItem('redirectPath');
     sessionStorage.removeItem('redirectPath');
+    const path = redirectPath || (window.location.hash ? window.location.hash.substring(1) : window.location.pathname);
 
-    const path = redirectPath || window.location.pathname;
-
-    if (redirectPath) {
+    if (redirectPath && redirectPath !== window.location.pathname) {
         window.history.replaceState(null, '', redirectPath);
+    } else if (window.location.hash && ('/' + path) !== window.location.pathname) {
+        window.history.replaceState(null, '', '/' + path);
     }
 
-    const pathParts = path.split('/');
+    const pathParts = path.split('/').filter(p => p);
 
-    const shareIndex = pathParts.indexOf('share');
-    if (shareIndex !== -1 && pathParts.length > shareIndex + 1) {
-        shareId = pathParts[shareIndex + 1];
-        initialGuildId = pathParts[shareIndex + 2];
-        initialChannelId = pathParts[shareIndex + 3];
+    if (pathParts[0] === 'share' && pathParts.length > 1) {
+        shareId = pathParts[1];
+        initialGuildId = pathParts[2];
+        initialChannelId = pathParts[3];
     }
     
     if (socket.connected) initializeShareSession();
-    welcomeScreen.querySelector('.theme-buttons').addEventListener('click', (e) => { if (e.target.classList.contains('theme-btn')) applyTheme(e.target.dataset.theme); });
+    
+    welcomeScreen?.querySelector('.theme-buttons')?.addEventListener('click', (e) => { 
+        if (e.target.classList.contains('theme-btn')) applyTheme(e.target.dataset.theme); 
+    });
 });
 
-socket.on('connect', () => { console.log("サーバーに接続しました。"); initializeShareSession(); });
+socket.on('connect', () => { 
+    console.log("サーバーに接続しました。"); 
+    initializeShareSession(); 
+});
 
 function initializeShareSession() {
-    if (!shareId) { document.body.innerHTML = "<h1>無効なリンクです</h1>"; return; }
+    if (!shareId) {
+        loadingPage.style.display = 'none';
+        errorPage.style.display = 'flex';
+        return;
+    }
     socket.emit('joinShare', shareId, (response) => {
         if (response.success) {
             permissions = response.permissions;
             loadingPage.style.display = 'none';
             clientPage.style.display = 'block';
             renderGuilds(response.guilds, initialGuildId, initialChannelId);
-            if (!permissions.canSendMessage) { messageInput.placeholder = "メッセージの送信は許可されていません"; }
-        } else { loadingPage.innerHTML = `<h1>接続失敗</h1><p>${response.message || '不明なエラー'}</p>`; }
+            if (!permissions.canSendMessage) { 
+                messageInput.placeholder = "メッセージの送信は許可されていません"; 
+            }
+        } else {
+            loadingPage.style.display = 'none';
+            errorPage.querySelector('.error-message').textContent = response.message || '不明なエラーが発生しました。';
+            errorPage.style.display = 'flex';
+        }
     });
+
     backToChannelsButton.addEventListener('click', () => clientContainer.classList.remove('show-messages'));
     cancelReplyButton.addEventListener('click', cancelReply);
     mentionToggleButton.addEventListener('click', () => { isMentionEnabled = !isMentionEnabled; mentionToggleButton.classList.toggle('active', isMentionEnabled); });
@@ -77,27 +94,33 @@ function initializeShareSession() {
 
 function renderGuilds(guilds, initialGuildId, initialChannelId) {
     guildList.innerHTML = '';
-    guildList.appendChild(createGuildIcon({ id: '@me', name: 'ダイレクトメッセージ', icon: null }));
     guilds.forEach(guild => guildList.appendChild(createGuildIcon(guild)));
-    const targetGuildId = initialGuildId || '@me';
-    const guildData = guilds.find(g => g.id === targetGuildId) || { id: targetGuildId, name: 'ダイレクトメッセージ' };
-    selectGuild(targetGuildId, guildData.name, initialChannelId);
+    
+    const targetGuildId = initialGuildId || guilds[0]?.id;
+    if (targetGuildId) {
+        const guildData = guilds.find(g => g.id === targetGuildId);
+        if (guildData) {
+            selectGuild(targetGuildId, guildData.name, initialChannelId);
+        }
+    }
 }
 
 function selectGuild(guildId, name, initialChannelId = null) {
-    if (currentGuildId === guildId) return;
+    if (currentGuildId === guildId && !initialChannelId) return;
     currentGuildId = guildId; currentChannelId = null;
     document.querySelectorAll('.guild-icon.active').forEach(el => el.classList.remove('active'));
     document.querySelector(`[data-guild-id='${guildId}']`).classList.add('active');
     guildNameText.textContent = name;
     channelNameText.textContent = 'チャンネルを選択';
-    messageList.innerHTML = ''; messageInput.disabled = true; channelList.innerHTML = '';
+    messageList.innerHTML = ''; 
+    messageInput.disabled = true; 
+    channelList.innerHTML = '';
     clientContainer.classList.remove('show-messages');
     messageList.style.display = 'none';
-    welcomeScreen.style.display = 'flex';
-    welcomeUserMessage.textContent = 'ようこそ！';
+    if(welcomeScreen) welcomeScreen.style.display = 'flex';
+    if(welcomeUserMessage) welcomeUserMessage.textContent = 'ようこそ！';
     updateURL();
-    if (guildId === '@me') { loadDms(initialChannelId); } else { loadChannels(guildId, initialChannelId); }
+    loadChannels(guildId, initialChannelId);
 }
 
 function loadChannels(guildId, initialChannelId = null) {
@@ -108,17 +131,10 @@ function loadChannels(guildId, initialChannelId = null) {
             if (cat.name) { const categoryEl = document.createElement('div'); categoryEl.className = 'channel-category'; categoryEl.textContent = cat.name; channelList.appendChild(categoryEl); }
             cat.channels.forEach(ch => { const el = document.createElement('li'); el.className = 'channel-item'; el.innerHTML = `<span class="channel-prefix">#</span> ${ch.name}`; el.dataset.channelId = ch.id; el.addEventListener('click', () => selectChannel(ch.id, ch.name)); channelList.appendChild(el); });
         });
-        if (initialChannelId) { const channel = categories.flatMap(c => c.channels).find(ch => ch.id === initialChannelId); if (channel) selectChannel(channel.id, channel.name); }
-    });
-}
-
-function loadDms(initialChannelId = null) {
-    channelList.innerHTML = '<li>読み込み中...</li>';
-    socket.emit('getSharedDms', (dms) => {
-        channelList.innerHTML = '';
-        const categoryEl = document.createElement('div'); categoryEl.className = 'channel-category'; categoryEl.textContent = 'ダイレクトメッセージ'; channelList.appendChild(categoryEl);
-        dms.forEach(dm => { const el = document.createElement('li'); el.className = 'channel-item dm-item'; el.dataset.channelId = dm.id; el.innerHTML = `<img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(dm.avatar)}" class="dm-avatar" alt=""> ${dm.name}`; el.addEventListener('click', () => selectChannel(dm.id, dm.name)); channelList.appendChild(el); });
-        if (initialChannelId) { const dm = dms.find(d => d.id === initialChannelId); if (dm) selectChannel(dm.id, dm.name); }
+        if (initialChannelId) { 
+            const channel = categories.flatMap(c => c.channels).find(ch => ch.id === initialChannelId); 
+            if (channel) selectChannel(channel.id, channel.name); 
+        }
     });
 }
 
@@ -127,18 +143,21 @@ function selectChannel(channelId, name) {
     currentChannelId = channelId;
     document.querySelectorAll('.channel-item.active').forEach(el => el.classList.remove('active'));
     document.querySelector(`[data-channel-id='${channelId}']`).classList.add('active');
-    welcomeScreen.style.display = 'none';
+    if(welcomeScreen) welcomeScreen.style.display = 'none';
     messageList.style.display = 'block';
-    const prefix = currentGuildId === '@me' ? '@' : '# ';
+    const prefix = '# ';
     channelNameText.textContent = `${prefix}${name}`;
     messageList.innerHTML = '<div class="welcome-message">メッセージを読み込み中...</div>';
-    if (permissions.canSendMessage) { messageInput.disabled = false; messageInput.placeholder = `${prefix}${name} へのメッセージ`; }
+    if (permissions.canSendMessage) { 
+        messageInput.disabled = false; 
+        messageInput.placeholder = `${prefix}${name} へのメッセージ`; 
+    }
     clientContainer.classList.add('show-messages');
     updateURL();
-    loadMessages(channelId);
+    loadMessages();
 }
 
-function loadMessages(channelId) { socket.emit('getMessages', channelId, (messages) => { messageList.innerHTML = ''; lastMessageAuthorId = null; messages.forEach(renderMessage); messageList.scrollTop = messageList.scrollHeight; }); }
+function loadMessages() { socket.emit('getMessages', currentChannelId, (messages) => { messageList.innerHTML = ''; lastMessageAuthorId = null; messages.forEach(renderMessage); messageList.scrollTop = messageList.scrollHeight; }); }
 
 chatForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -153,7 +172,9 @@ chatForm.addEventListener('submit', (e) => {
 function createGuildIcon(guild) {
     const el = document.createElement('div'); el.className = 'guild-item';
     const icon = document.createElement('div'); icon.className = 'guild-icon'; icon.dataset.guildId = guild.id; icon.title = guild.name;
-    if (guild.id === '@me') { icon.innerHTML = `<i class="fa-brands fa-discord"></i>`; } else if (guild.icon) { icon.innerHTML = `<img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(guild.icon)}" alt="${guild.name}">`; } else { icon.textContent = guild.name.substring(0, 1); }
+    if (guild.id === '@me') { icon.innerHTML = `<i class="fa-brands fa-discord"></i>`; } 
+    else if (guild.icon) { icon.innerHTML = `<img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(guild.icon)}" alt="${guild.name}">`; } 
+    else { icon.textContent = guild.name.substring(0, 1); }
     icon.addEventListener('click', () => selectGuild(guild.id, guild.name));
     el.appendChild(icon);
     return el;
@@ -178,7 +199,7 @@ function renderMessage(msg) {
     }
     messageList.appendChild(el);
     lastMessageAuthorId = msg.author.id;
-    if (isScrolledToBottom) { messageList.scrollTop = messageList.scrollHeight; }
+    if (isScrolledToBottom) messageList.scrollTop = messageList.scrollHeight;
 }
 
 function parseDiscordContent(content) { if (!content) return ''; let pText = content; pText = pText.replace(/<a?:(\w+?):(\d+?)>/g, (match, name, id) => `<img class="emoji" src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(`https://cdn.discordapp.com/emojis/${id}.${match.startsWith('<a:') ? 'gif' : 'webp'}?size=48`)}" alt=":${name}:">`); pText = pText.replace(/@\[\[(USER|ROLE):(.+?)\]\]/g, (m, t, n) => `<span class="mention">@${n}</span>`); let html = marked.parse(pText, { breaks: true, gfm: true }).trim().replace(/^<p>|<\/p>$/g, ''); return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }); }
