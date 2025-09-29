@@ -1,21 +1,13 @@
-// =================================================================================
-// script.js (for index.html) - Final Corrected Version
-// =================================================================================
-
 const API_SERVER_URL = "https://api.yexe.xyz";
 const socket = io(API_SERVER_URL);
 
-// ----- グローバル変数 -----
 let currentSessionId = null; 
 let currentUser = null; 
 let pendingToken = null; 
 
-// ----- 初期化のトリガー -----
 document.addEventListener('DOMContentLoaded', initializeSite);
 
-// ----- メイン初期化関数 -----
 function initializeSite() {
-    // --- DOM要素の取得 ---
     const tokenInput = document.getElementById('token-input');
     const loginButton = document.getElementById('login-button');
     const loginHistoryContainer = document.getElementById('login-history');
@@ -30,12 +22,10 @@ function initializeSite() {
         return;
     }
 
-    // --- Lenis (滑らかスクロール) ---
     const lenis = new Lenis();
     function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
     requestAnimationFrame(raf);
 
-    // --- アニメーション設定 ---
     function setupSplitText() {
         document.querySelectorAll('[data-split-text]').forEach(el => {
             if (el.classList.contains('is-ready')) return;
@@ -71,7 +61,6 @@ function initializeSite() {
         themeObserver.observe(scrollTrigger);
     }
 
-    // --- イベントリスナー設定 ---
     socket.on('connect', () => renderLoginHistory(loginHistoryContainer));
     if (socket.connected) renderLoginHistory(loginHistoryContainer);
     
@@ -170,8 +159,6 @@ function initializeSite() {
     });
 }
 
-// ----- 関数群 -----
-
 function renderLoginHistory(loginHistoryContainer) {
     const history = JSON.parse(localStorage.getItem('discord-client-history') || '[]');
     loginHistoryContainer.innerHTML = '';
@@ -230,7 +217,6 @@ function showEmbeddedClientPreview(user) {
     }
 }
 
-// ----- Socket.IO イベントリスナー -----
 socket.on('login-success', ({ sessionId, user }) => { 
     const loginButton = document.getElementById('login-button');
     const tokenInput = document.getElementById('token-input');
@@ -265,10 +251,6 @@ socket.on('login-error', (msg) => {
     loginButton.disabled = false; 
 });
 
-
-// =================================================================================
-// embedded_client.js (動的に初期化されるプレビュー用スクリプト)
-// =================================================================================
 function initializeEmbeddedClient(socket, sessionId, user) {
     const embeddedClient = document.getElementById('embedded-client');
     if (embeddedClient.dataset.initialized === 'true' && embeddedClient.dataset.previewSessionId === sessionId) {
@@ -297,7 +279,6 @@ function initializeEmbeddedClient(socket, sessionId, user) {
     let localReplyingToMessage = null;
     let localIsMentionEnabled = false;
 
-    // --- 関数定義 ---
     function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); const currentThemeBtn = document.querySelector(`.theme-btn[data-theme="${theme}"]`); if(currentThemeBtn) currentThemeBtn.classList.add('active'); }
     function cancelReply() { localReplyingToMessage = null; replyIndicator.style.display = 'none'; localIsMentionEnabled = false; mentionToggleButton.classList.remove('active'); }
     
@@ -400,14 +381,12 @@ function initializeEmbeddedClient(socket, sessionId, user) {
     
     function formatTimestamp(date) { const now = new Date(), yday = new Date(now); yday.setDate(yday.getDate() - 1); const pad = (n) => n.toString().padStart(2, '0'); const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`; if (date.toDateString() === now.toDateString()) return time; if (date.toDateString() === yday.toDateString()) return `昨日 ${time}`; return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${time}`; }
     
-    // --- イベントリスナー ---
     backToChannelsButton.addEventListener('click', () => embeddedClient.classList.remove('show-messages'));
     chatForm.addEventListener('submit', (e) => { e.preventDefault(); const content = messageInput.value.trim(); if (content && localCurrentChannelId) { socket.emit('sendMessage', { channelId: localCurrentChannelId, content, reply: localReplyingToMessage ? { messageId: localReplyingToMessage.id, mention: localIsMentionEnabled } : null }); messageInput.value = ''; cancelReply(); } });
     cancelReplyButton.addEventListener('click', cancelReply);
     mentionToggleButton.addEventListener('click', () => { localIsMentionEnabled = !localIsMentionEnabled; mentionToggleButton.classList.toggle('active', localIsMentionEnabled); });
     if (themeButtons) themeButtons.addEventListener('click', (e) => { if (e.target.classList.contains('theme-btn')) applyTheme(e.target.dataset.theme); });
     
-    // --- Socket.IOリスナー ---
     const messageHandler = (msg) => { if (msg.channelId === localCurrentChannelId) { if (!messageList.querySelector(`.message[data-message-id='${msg.id}']`)) renderMessage(msg); } };
     const deleteHandler = ({ channelId, messageId }) => { if (channelId === localCurrentChannelId) { const msgEl = embeddedClient.querySelector(`.message[data-message-id='${messageId}']`); if (msgEl) msgEl.remove(); } };
 
@@ -416,7 +395,6 @@ function initializeEmbeddedClient(socket, sessionId, user) {
     socket.off('messageDeleted', deleteHandler);
     socket.on('messageDeleted', deleteHandler);
 
-    // --- 初期化実行 ---
     socket.emit('getGuilds', (guilds) => {
         guildList.innerHTML = '';
         guildList.appendChild(createGuildIcon({ id: '@me', name: 'ダイレクトメッセージ', icon: null }, true));
