@@ -398,8 +398,6 @@ function updateURL() {
     }
 
     if (('#' + hash) !== window.location.hash) {
-        // history.pushState is better than assigning to location.hash directly
-        // as it doesn't create a new entry in browser history every time.
         window.history.pushState(null, '', '#' + hash);
     }
 }
@@ -411,5 +409,7 @@ function showGuildContextMenu(e, guildId) { e.preventDefault(); if (!guildContex
 function showMessageContextMenu(e) { e.preventDefault(); if (!messageContextMenu) return; const msgEl = e.target.closest('.message'); if (!msgEl) return; messageContextMenu.querySelector('[data-action="delete"]').style.display = (currentUser && msgEl.dataset.authorId === currentUser.id) ? 'block' : 'none'; messageContextMenu.style.display = 'block'; const touch = e.touches ? e.touches[0] : e; messageContextMenu.style.left = `${touch.pageX}px`; messageContextMenu.style.top = `${touch.pageY}px`; messageContextMenu.dataset.messageId = msgEl.dataset.messageId; messageContextMenu.dataset.authorUsername = msgEl.dataset.authorUsername; }
 
 socket.on('newMessage', (msg) => { if (msg.channelId === currentChannelId) { if (!document.querySelector(`.message[data-message-id='${msg.id}']`)) renderMessage(msg); } });
+
+socket.on('messageDeleted', ({ channelId, messageId }) => { if (channelId === currentChannelId) { const msgEl = document.querySelector(`.message[data-message-id='${messageId}']`); if (msgEl) msgEl.remove(); } });
 
 socket.on('messageDeleted', ({ channelId, messageId }) => { if (channelId === currentChannelId) { const msgEl = document.querySelector(`.message[data-message-id='${messageId}']`); if (msgEl) msgEl.remove(); } });```
