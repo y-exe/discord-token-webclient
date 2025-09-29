@@ -48,16 +48,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const initialGuildId = pathParts[1];
             const initialChannelId = pathParts[2];
 
-            // Demoセッションとしてサーバーに認証リクエストを送る
             socket.emit('authenticate', 'demo', (response) => {
                  if (response.success) {
                     if (invalidPage) invalidPage.style.display = 'none';
                     if (clientPage) clientPage.style.display = 'block';
                     document.body.classList.remove('theme-alt');
-                    currentUser = response.user || { username: 'Demo User' }; // サーバーからのuser情報があれば使う
+                    currentUser = response.user || { username: 'Demo User' };
                     loadClientData(initialGuildId, initialChannelId);
                  } else {
-                    // Demoセッションの開始に失敗した場合
                     document.body.innerHTML = `<h1>デモの読み込みに失敗しました</h1><p>サーバーが応答しないか、設定に問題がある可能性があります。</p>`;
                  }
             });
@@ -147,8 +145,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initializeInvalidPage() {
     document.body.classList.add('theme-alt');
-    const tokenInput = document.getElementById('token-input-invalid');
-    const loginButton = document.getElementById('login-button-invalid');
+    // ★修正箇所: トークン入力関連の要素取得を削除
+    // const tokenInput = document.getElementById('token-input-invalid');
+    // const loginButton = document.getElementById('login-button-invalid');
     const loginHistoryContainer = document.getElementById('login-history-invalid');
 
     function renderHistoryForInvalid() {
@@ -171,13 +170,13 @@ function initializeInvalidPage() {
 
     const attemptLoginInvalid = (token) => {
         if (token) {
-            loginButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            loginButton.disabled = true;
             socket.emit('login', { token: token, isPreview: false });
         }
     };
 
-    loginButton.addEventListener('click', () => attemptLoginInvalid(tokenInput.value.trim()));
+    // ★修正箇所: loginButtonのイベントリスナーを削除
+    // loginButton.addEventListener('click', () => attemptLoginInvalid(tokenInput.value.trim()));
+
     loginHistoryContainer.addEventListener('click', (e) => {
         const item = e.target.closest('.history-item');
         if (item && item.dataset.token) {
@@ -187,14 +186,13 @@ function initializeInvalidPage() {
     });
 
     const onLoginSuccess = ({ sessionId }) => {
-        // ページを完全に再読み込みさせるため、hrefに直接代入する
-        window.location.href = `client.html#client/${sessionId}`;
+        // ★修正箇所: URLのハッシュを更新後、ページをリロードする
+        window.location.hash = `client/${sessionId}`;
+        window.location.reload();
     };
 
     const onLoginError = (msg) => {
         alert(`ログイン失敗: ${msg}`);
-        loginButton.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i>';
-        loginButton.disabled = false;
         renderHistoryForInvalid();
     };
 
