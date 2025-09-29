@@ -587,6 +587,13 @@ body.full-client-body { background-color: var(--bg-main); overflow: hidden; }
     background-color: var(--bg-color-2);
     width: 100vw;
     min-height: 100vh;
+    display: flex; /* noneからflexに変更 */
+    justify-content: center;
+    align-items: center;
+}
+#session-invalid-page .main-content-area {
+    width: 100%;
+    max-width: 500px;
 }
 .invalid-page-content {
     text-align: center;
