@@ -614,6 +614,45 @@ body.full-client-body { background-color: var(--bg-main); overflow: hidden; }
     margin-bottom: 2rem;
 }
 
+#session-invalid-page {
+    background-color: var(--bg-color-2);
+    width: 100vw;
+    min-height: 100vh;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+#session-invalid-page .main-content-area {
+    width: 100%;
+    max-width: 500px;
+    padding-top: 0; /* Adjusted padding */
+}
+
+.invalid-page-content {
+    text-align: center;
+    color: var(--text-color-2);
+    padding: 2rem 1rem;
+}
+.invalid-icon {
+    font-size: 3rem;
+    color: #f87171;
+    margin-bottom: 1.5rem;
+}
+.invalid-page-content h1 {
+    font-family: var(--font-geist);
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+}
+.invalid-page-content p {
+    color: var(--text-muted-2);
+    line-height: 1.7;
+    margin-bottom: 2rem;
+}
 .scrollable-list {
     overscroll-behavior: contain;
 }
