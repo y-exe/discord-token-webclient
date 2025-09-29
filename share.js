@@ -1,7 +1,6 @@
 const API_SERVER_URL = "https://api.yexe.xyz";
 const socket = io(API_SERVER_URL);
 
-// ----- DOM要素の取得 (share.htmlに存在する要素のみ) -----
 const clientPage = document.getElementById('client-page');
 const loadingPage = document.getElementById('loading-page');
 const errorPage = document.getElementById('error-page');
@@ -20,7 +19,6 @@ const replyToUser = document.getElementById('reply-to-user');
 const cancelReplyButton = document.getElementById('cancel-reply-button');
 const mentionToggleButton = document.getElementById('mention-toggle-button');
 
-// ----- グローバル変数 -----
 let shareId, initialGuildId, initialChannelId;
 let currentGuildId = null;
 let currentChannelId = null;
@@ -29,7 +27,6 @@ let lastMessageAuthorId = null;
 let replyingToMessage = null;
 let isMentionEnabled = false;
 
-// ----- 関数群 -----
 function applyTheme(theme) {
     document.body.dataset.theme = theme;
     localStorage.setItem('discord-theme', theme);
@@ -93,6 +90,15 @@ function initializeShareSession() {
     });
 
     backToChannelsButton.addEventListener('click', () => clientContainer.classList.remove('show-messages'));
+    chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const content = messageInput.value.trim();
+        if (content && currentChannelId && permissions.canSendMessage) {
+            socket.emit('sendSharedMessage', { channelId: currentChannelId, content, reply: replyingToMessage ? { messageId: replyingToMessage.id, mention: isMentionEnabled } : null });
+            messageInput.value = '';
+            cancelReply();
+        }
+    });
     cancelReplyButton.addEventListener('click', cancelReply);
     mentionToggleButton.addEventListener('click', () => { isMentionEnabled = !isMentionEnabled; mentionToggleButton.classList.toggle('active', isMentionEnabled); });
 }
@@ -123,7 +129,7 @@ function selectGuild(guildId, name, initialChannelId = null) {
     messageInput.disabled = true; 
     channelList.innerHTML = '';
     clientContainer.classList.remove('show-messages');
-    messageList.style.display = 'block'; // 常にメッセージリストを表示
+    messageList.style.display = 'block';
     
     updateURL();
     loadChannels(guildId, initialChannelId);
@@ -173,16 +179,6 @@ function loadMessages() {
         messageList.scrollTop = messageList.scrollHeight; 
     }); 
 }
-
-chatForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const content = messageInput.value.trim();
-    if (content && currentChannelId && permissions.canSendMessage) {
-        socket.emit('sendSharedMessage', { channelId: currentChannelId, content, reply: replyingToMessage ? { messageId: replyingToMessage.id, mention: isMentionEnabled } : null });
-        messageInput.value = '';
-        cancelReply();
-    }
-});
 
 function createGuildIcon(guild) {
     const el = document.createElement('div'); 
