@@ -38,52 +38,44 @@ document.addEventListener('DOMContentLoaded', () => {
     applyTheme(savedTheme);
 
     socket.on('connect', () => {
+        const isDemoPage = window.location.pathname.endsWith('/demo.html');
         const redirectPath = sessionStorage.getItem('redirectPath');
         sessionStorage.removeItem('redirectPath');
 
-        let path = redirectPath || (window.location.hash ? window.location.hash.substring(1) : window.location.pathname);
-        
-        if (path.startsWith('/demo')) {
-            path = 'client' + path;
-        } else if (window.location.pathname.endsWith('/demo.html') && (!redirectPath || ['/demo.html', '/demo'].includes(redirectPath))) {
-            path = 'client/demo';
-        }
+        let path = window.location.hash ? window.location.hash.substring(1) : (redirectPath || window.location.pathname);
+        let pathParts = path.split('/').filter(p => p);
 
-        if (redirectPath && redirectPath !== window.location.pathname) {
-            window.history.replaceState(null, '', redirectPath);
-        } else if (window.location.hash && ('/' + path) !== window.location.pathname) {
-             window.history.replaceState(null, '', '/' + path);
-        }
-        
-        const pathParts = path.split('/').filter(p => p);
-        
-        if (pathParts[0] === 'client' && pathParts.length > 1) {
+        // Handle URL structures for GitHub Pages
+        if (isDemoPage) {
+            currentSessionId = 'demo';
+            const initialGuildId = pathParts[1];
+            const initialChannelId = pathParts[2];
+            
+            if (invalidPage) invalidPage.style.display = 'none';
+            if (clientPage) clientPage.style.display = 'block';
+            document.body.classList.remove('theme-alt');
+            currentUser = { username: 'Demo User' };
+            loadClientData(initialGuildId, initialChannelId);
+
+        } else if (pathParts[0] === 'client' && pathParts.length > 1) {
             currentSessionId = pathParts[1];
             const initialGuildId = pathParts[2];
             const initialChannelId = pathParts[3];
 
             if (currentSessionId) {
-                if (currentSessionId === 'demo') {
-                    if (invalidPage) invalidPage.style.display = 'none';
-                    if (clientPage) clientPage.style.display = 'block';
-                    document.body.classList.remove('theme-alt');
-                    currentUser = { username: 'Demo User' };
-                    loadClientData(initialGuildId, initialChannelId);
-                } else {
-                    socket.emit('authenticate', currentSessionId, (response) => {
-                        if (response.success) {
-                            if (invalidPage) invalidPage.style.display = 'none';
-                            if (clientPage) clientPage.style.display = 'block';
-                            document.body.classList.remove('theme-alt');
-                            currentUser = response.user;
-                            loadClientData(initialGuildId, initialChannelId);
-                        } else {
-                            if (clientPage) clientPage.style.display = 'none';
-                            if (invalidPage) invalidPage.style.display = 'flex';
-                            initializeInvalidPage();
-                        }
-                    });
-                }
+                socket.emit('authenticate', currentSessionId, (response) => {
+                    if (response.success) {
+                        if (invalidPage) invalidPage.style.display = 'none';
+                        if (clientPage) clientPage.style.display = 'block';
+                        document.body.classList.remove('theme-alt');
+                        currentUser = response.user;
+                        loadClientData(initialGuildId, initialChannelId);
+                    } else {
+                        if (clientPage) clientPage.style.display = 'none';
+                        if (invalidPage) invalidPage.style.display = 'flex';
+                        initializeInvalidPage();
+                    }
+                });
             }
         } else {
             if (clientPage) clientPage.style.display = 'none';
@@ -189,8 +181,8 @@ function initializeInvalidPage() {
     });
     
     const onLoginSuccess = ({ sessionId }) => {
-        window.location.hash = `client/${sessionId}`;
-        window.location.reload();
+        // Use full redirect for reliability
+        window.location.href = `client.html#client/${sessionId}`;
     };
     
     const onLoginError = (msg) => {
@@ -377,25 +369,26 @@ function parseDiscordContent(content) { if (!content) return ''; let pText = con
 function formatTimestamp(date) { const now = new Date(), yday = new Date(now); yday.setDate(yday.getDate() - 1); const pad = (n) => n.toString().padStart(2, '0'); const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`; if (date.toDateString() === now.toDateString()) return time; if (date.toDateString() === yday.toDateString()) return `昨日 ${time}`; return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${time}`; }
 
 function updateURL() {
-    let url;
+    let hash = '';
     if (currentSessionId === 'demo') {
-        url = '/demo';
+        hash = 'demo';
         if (currentGuildId) {
-            url += `/${currentGuildId}`;
-            if (currentChannelId) { url += `/${currentChannelId}`; }
+            hash += `/${currentGuildId}`;
+            if (currentChannelId) { hash += `/${currentChannelId}`; }
         }
     } else if (currentSessionId) {
-        url = `/client/${currentSessionId}`;
+        hash = `client/${currentSessionId}`;
         if (currentGuildId) {
-            url += `/${currentGuildId}`;
-            if (currentChannelId) { url += `/${currentChannelId}`; }
+            hash += `/${currentGuildId}`;
+            if (currentChannelId) { hash += `/${currentChannelId}`; }
         }
     } else {
         return;
     }
     
-    if (url !== window.location.pathname) {
-        window.history.pushState({ guildId: currentGuildId, channelId: currentChannelId }, '', url);
+    // Always use hash-based routing for client-side navigation
+    if (('#' + hash) !== window.location.hash) {
+        window.location.hash = hash;
     }
 }
 
@@ -407,4 +400,5 @@ function showMessageContextMenu(e) { e.preventDefault(); if (!messageContextMenu
 
 socket.on('newMessage', (msg) => { if (msg.channelId === currentChannelId) { if (!document.querySelector(`.message[data-message-id='${msg.id}']`)) renderMessage(msg); } });
 
+socket.on('messageDeleted', ({ channelId, messageId }) => { if (channelId === currentChannelId) { const msgEl = document.querySelector(`.message[data-message-id='${messageId}']`); if (msgEl) msgEl.remove(); } });
 socket.on('messageDeleted', ({ channelId, messageId }) => { if (channelId === currentChannelId) { const msgEl = document.querySelector(`.message[data-message-id='${messageId}']`); if (msgEl) msgEl.remove(); } });
