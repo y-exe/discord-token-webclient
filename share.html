@@ -61,6 +61,39 @@
     </div>
 
     <div id="client-page" class="full-client-page" style="display: none;">
+        <div class="client-container" id="full-client-container" data-lenis-prevent>
+            <div class="sidebar" id="guild-list"></div>
+            <div class="sidebar" id="channel-list-container">
+                <div id="guild-name-container" class="sidebar-header">
+                    <button class="mobile-back-button" id="back-to-guilds"><i class="fas fa-chevron-left"></i></button>
+                    <span id="guild-name-text">サーバーを選択</span>
+                </div>
+                <ul id="channel-list"></ul>
+            </div>
+            <div class="main-content">
+                <header id="channel-header">
+                    <button class="mobile-back-button" id="back-to-channels"><i class="fas fa-chevron-left"></i></button>
+                    <span id="channel-name-text">チャンネルを選択してください</span>
+                </header>
+                <div id="message-list-wrapper">
+                    <div id="message-list"></div>
+                </div>
+                <footer class="chat-form-container">
+                    <div id="reply-indicator" style="display: none;">
+                        <div class="reply-indicator-content">
+                            <span>返信先: <span id="reply-to-user"></span></span>
+                            <div class="reply-actions">
+                                <button id="mention-toggle-button" class="mention-button" title="メンションのON/OFF">@</button>
+                                <button id="cancel-reply-button">&times;</button>
+                            </div>
+                        </div>
+                    </div>
+                    <form id="chat-form">
+                        <input type="text" id="message-input" placeholder="メッセージを送信" autocomplete="off" disabled>
+                    </form>
+                </footer>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
