@@ -1,6 +1,6 @@
 const API_SERVER_URL = "https://api.yexe.xyz";
 const socket = io(API_SERVER_URL, {
-    reconnectionAttempts: 5 // 再接続試行回数を設定
+    reconnectionAttempts: 5 // サーバーへの再接続試行回数
 });
 
 // --- DOM要素の取得 ---
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Socket connection failed:", err.message);
         document.body.innerHTML = `<h1>サーバーに接続できません</h1><p>APIサーバーがダウンしているか、ネットワークに問題がある可能性があります。時間をおいて再度お試しください。</p>`;
     });
-    
+
     // UIのイベントリスナーは先に設定しておく
     setupEventListeners();
 });
@@ -63,12 +63,16 @@ function initializeClient() {
     const hash = window.location.hash.substring(1);
     const pathParts = hash.split('/').filter(p => p);
 
-    const showInvalidPage = () => {
+    const showInvalidPage = (message = null) => {
         console.log("Showing invalid session page.");
         if (clientPage) clientPage.style.display = 'none';
         if (invalidPage) {
             invalidPage.style.display = 'flex';
             initializeInvalidPage();
+            if (message) {
+                 const p = invalidPage.querySelector('.invalid-page-content p');
+                 if(p) p.textContent = message;
+            }
         }
     };
 
@@ -80,33 +84,50 @@ function initializeClient() {
         loadClientData(initialGuildId, initialChannelId);
     };
 
-    if (isDemoPage) {
-        console.log("This is a Demo page. Authenticating as 'demo'.");
-        currentSessionId = 'demo';
-        const initialGuildId = pathParts[1];
-        const initialChannelId = pathParts[2];
-        socket.emit('authenticate', 'demo', (response) => {
+    const authenticateWithTimeout = (sessionId, timeout = 10000) => {
+        let hasResponded = false;
+        const timer = setTimeout(() => {
+            if (!hasResponded) {
+                hasResponded = true;
+                console.error(`Authentication timed out for session ID: ${sessionId}`);
+                const errorMessage = `<h1>認証タイムアウト</h1><p>サーバーからの応答がありません。サーバーが起動しているか確認してください。</p>`;
+                if (isDemoPage) {
+                    document.body.innerHTML = errorMessage;
+                } else {
+                    showInvalidPage("サーバーからの応答がタイムアウトしました。");
+                }
+            }
+        }, timeout);
+
+        const initialGuildId = pathParts[isDemoPage ? 1 : 2];
+        const initialChannelId = pathParts[isDemoPage ? 2 : 3];
+
+        socket.emit('authenticate', sessionId, (response) => {
+            if (hasResponded) return;
+            clearTimeout(timer);
+            hasResponded = true;
+
             if (response && response.success) {
                 currentUser = response.user || { username: 'Demo User' };
                 startClient(initialGuildId, initialChannelId);
             } else {
-                document.body.innerHTML = `<h1>デモの読み込みに失敗しました</h1><p>${response?.message || 'サーバーからの応答がありません。'}</p>`;
+                console.warn("Authentication failed:", response?.message);
+                const failMessage = `<h1>認証に失敗しました</h1><p>${response?.message || '不明なエラーが発生しました。'}</p>`;
+                if (isDemoPage) {
+                     document.body.innerHTML = failMessage;
+                } else {
+                    showInvalidPage(response?.message || 'セッションが無効です。');
+                }
             }
         });
+    };
+
+    if (isDemoPage) {
+        currentSessionId = 'demo';
+        authenticateWithTimeout('demo');
     } else if (pathParts[0] === 'client' && pathParts.length > 1) {
         currentSessionId = pathParts[1];
-        console.log(`Authenticating with session ID: ${currentSessionId}`);
-        const initialGuildId = pathParts[2];
-        const initialChannelId = pathParts[3];
-        socket.emit('authenticate', currentSessionId, (response) => {
-            if (response && response.success) {
-                currentUser = response.user;
-                startClient(initialGuildId, initialChannelId);
-            } else {
-                console.warn("Authentication failed:", response?.message);
-                showInvalidPage();
-            }
-        });
+        authenticateWithTimeout(currentSessionId);
     } else {
         showInvalidPage();
     }
