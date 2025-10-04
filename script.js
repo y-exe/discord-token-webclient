@@ -1,3 +1,5 @@
+// FOR index.html ONLY
+
 const API_SERVER_URL = "https://api.yexe.xyz";
 const socket = io(API_SERVER_URL);
 
@@ -29,10 +31,7 @@ function initializeSite() {
     function setupSplitText() {
         document.querySelectorAll('[data-split-text]').forEach(el => {
             if (el.classList.contains('is-ready')) return;
-            el.innerHTML = el.textContent.split('').map((char, i) => {
-                const style = `--char-delay: ${i * 30}ms`;
-                return `<span class="char" style="${style}">${char === ' ' ? '&nbsp;' : char}</span>`;
-            }).join('');
+            el.innerHTML = el.textContent.split('').map((char, i) => `<span class="char" style="--char-delay: ${i * 30}ms">${char === ' ' ? '&nbsp;' : char}</span>`).join('');
             el.classList.add('is-ready');
         });
     }
@@ -40,17 +39,11 @@ function initializeSite() {
     
     const revealObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('is-visible');
-            } else {
-                entry.target.classList.remove('is-visible');
-            }
+            entry.target.classList.toggle('is-visible', entry.isIntersecting);
         });
     }, { rootMargin: "0px 0px -10% 0px" });
 
-    document.querySelectorAll('[data-reveal], [data-split-text]').forEach(el => {
-        revealObserver.observe(el);
-    });
+    document.querySelectorAll('[data-reveal], [data-split-text]').forEach(el => revealObserver.observe(el));
 
     const scrollTrigger = document.getElementById('scroll-trigger');
     if (scrollTrigger) {
@@ -106,33 +99,26 @@ function initializeSite() {
     if (shareButton && shareModal) {
         const shareModalCloseButton = document.getElementById('share-modal-close-button');
         const shareSettingsForm = document.getElementById('share-settings-form');
-        
         shareButton.addEventListener('click', () => { 
             if (!currentSessionId) return alert('まずログインしてください。'); 
             const listEl = document.getElementById('share-guild-list'); 
             listEl.innerHTML = '<div class="loader"></div>'; 
             socket.emit('getGuilds', (guilds) => { 
                 listEl.innerHTML = ''; 
-                guilds.forEach(g => { 
-                    listEl.innerHTML += `<label class="checkbox-label"><input type="checkbox" name="guild" value="${g.id}"> <span>${g.name}</span></label>`; 
-                }); 
+                guilds.forEach(g => { listEl.innerHTML += `<label class="checkbox-label"><input type="checkbox" name="guild" value="${g.id}"> <span>${g.name}</span></label>`; }); 
             }); 
             shareModal.classList.add('visible'); 
         });
-
         if (shareModalCloseButton) shareModalCloseButton.addEventListener('click', () => shareModal.classList.remove('visible'));
         shareModal.addEventListener('click', (e) => { if (e.target === shareModal) shareModal.classList.remove('visible'); });
-
         if (shareSettingsForm) {
             shareSettingsForm.addEventListener('submit', (e) => { 
                 e.preventDefault(); 
                 const fData = new FormData(e.target); 
                 const data = { permissions: { canSendMessage: fData.has('canSendMessage'), allowedGuilds: fData.getAll('guild'), expiry: fData.get('expiry') }, origin: window.location.origin }; 
                 socket.emit('createShareLink', data, (res) => { 
-                    if (res.success) { 
-                        prompt('このリンクを共有してください:', res.url); 
-                        shareModal.classList.remove('visible'); 
-                    } else { alert("リンク作成失敗"); } 
+                    if (res.success) { prompt('このリンクを共有してください:', res.url); shareModal.classList.remove('visible'); } 
+                    else { alert("リンク作成失敗"); } 
                 }); 
             });
         }
@@ -170,11 +156,7 @@ function renderLoginHistory(loginHistoryContainer) {
             item.className = 'history-item';
             item.dataset.token = acc.token;
             item.dataset.userid = acc.id;
-            item.innerHTML = `
-                <img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(acc.avatar)}" alt="${acc.username}">
-                <span>${acc.username}</span>
-                <button class="delete-history-btn" title="このログを削除"><i class="fa-solid fa-xmark"></i></button>
-            `;
+            item.innerHTML = `<img src="${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(acc.avatar)}" alt="${acc.username}"><span>${acc.username}</span><button class="delete-history-btn" title="このログを削除"><i class="fa-solid fa-xmark"></i></button>`;
             loginHistoryContainer.appendChild(item);
         });
     }
@@ -240,9 +222,7 @@ socket.on('login-error', (msg) => {
 
 function initializeEmbeddedClient(socket, sessionId, user) {
     const embeddedClient = document.getElementById('embedded-client');
-    if (embeddedClient.dataset.initialized === 'true' && embeddedClient.dataset.previewSessionId === sessionId) {
-        return;
-    }
+    if (embeddedClient.dataset.initialized === 'true' && embeddedClient.dataset.previewSessionId === sessionId) return;
     embeddedClient.dataset.initialized = 'true';
     embeddedClient.dataset.previewSessionId = sessionId;
 
@@ -260,12 +240,8 @@ function initializeEmbeddedClient(socket, sessionId, user) {
     const mentionToggleButton = embeddedClient.querySelector('#mention-toggle-button');
     const themeButtons = document.querySelector('.theme-selector-wrapper .theme-buttons');
 
-    let localCurrentGuildId = null;
-    let localCurrentChannelId = null;
-    let localLastMessageAuthorId = null;
-    let localReplyingToMessage = null;
-    let localIsMentionEnabled = false;
-    
+    let localCurrentGuildId = null, localCurrentChannelId = null, localLastMessageAuthorId = null, localReplyingToMessage = null, localIsMentionEnabled = false;
+
     socket.emit('authenticate', sessionId, (response) => {
         if (!response.success) {
             messageList.innerHTML = '<div class="welcome-message">プレビューの読み込みに失敗しました。</div>';
@@ -275,10 +251,7 @@ function initializeEmbeddedClient(socket, sessionId, user) {
         socket.emit('getGuilds', (guilds) => {
             guildList.innerHTML = '';
             guildList.appendChild(createGuildIcon({ id: '@me', name: 'ダイレクトメッセージ', icon: null }, true));
-            const savedOrder = JSON.parse(localStorage.getItem('guildOrder'));
-            if (savedOrder) { guilds.sort((a, b) => { const iA = savedOrder.indexOf(a.id), iB = savedOrder.indexOf(b.id); return (iA === -1) ? 1 : (iB === -1) ? -1 : iA - iB; }); }
             guilds.forEach(guild => guildList.appendChild(createGuildIcon(guild, false)));
-            new Sortable(guildList, { animation: 150, onEnd: () => { const newOrder = [...guildList.children].map(item => item.querySelector('.guild-icon').dataset.guildId).filter(id => id !== '@me'); localStorage.setItem('guildOrder', JSON.stringify(newOrder)); } });
             selectGuild('@me', 'ダイレクトメッセージ');
         });
     });
@@ -288,10 +261,8 @@ function initializeEmbeddedClient(socket, sessionId, user) {
     
     function selectGuild(guildId, name) {
         if (localCurrentGuildId === guildId) return;
-        localCurrentGuildId = guildId;
-        localCurrentChannelId = null;
-        embeddedClient.dataset.currentGuildId = guildId;
-        embeddedClient.dataset.currentChannelId = '';
+        localCurrentGuildId = guildId; localCurrentChannelId = null;
+        embeddedClient.dataset.currentGuildId = guildId; embeddedClient.dataset.currentChannelId = '';
         document.querySelectorAll('#embedded-client .guild-icon.active').forEach(el => el.classList.remove('active'));
         embeddedClient.querySelector(`[data-guild-id='${guildId}']`).classList.add('active');
         guildNameContainer.textContent = name;
@@ -313,9 +284,7 @@ function initializeEmbeddedClient(socket, sessionId, user) {
             });
              if (window.innerWidth > 768) {
                 const firstChannel = categories[0]?.channels[0];
-                if (firstChannel) {
-                    selectChannel(firstChannel.id, firstChannel.name);
-                }
+                if (firstChannel) selectChannel(firstChannel.id, firstChannel.name);
             }
         });
     }
