@@ -629,7 +629,7 @@ body.full-client-body { background-color: var(--bg-main); overflow: hidden; }
 #session-invalid-page .main-content-area {
     width: 100%;
     max-width: 500px;
-    padding-top: 0; /* Adjusted padding */
+    padding-top: 0;
 }
 
 .invalid-page-content {
@@ -657,7 +657,6 @@ body.full-client-body { background-color: var(--bg-main); overflow: hidden; }
     overscroll-behavior: contain;
 }
 
-/* セッション無効ページのレイアウト修正 */
 #session-invalid-page {
     display: flex;
     justify-content: center;
@@ -667,18 +666,16 @@ body.full-client-body { background-color: var(--bg-main); overflow: hidden; }
     box-sizing: border-box;
 }
 
-/* ページ全体のコンテナ */
 #session-invalid-page #main-page {
     width: 100%;
     max-width: 900px;
-    padding: 2rem 1rem; /* パディングを調整 */
+    padding: 2rem 1rem;
 }
 
-/* 中央のコンテンツエリア */
 #session-invalid-page .main-content-area {
     width: 100%;
-    max-width: 500px; /* コンテンツの最大幅を制限 */
-    margin: 0 auto;   /* 中央揃え */
+    max-width: 500px;
+    margin: 0 auto;
 }
 
 .invalid-page-content {
@@ -705,7 +702,6 @@ body.full-client-body { background-color: var(--bg-main); overflow: hidden; }
     margin-bottom: 2rem;
 }
 
-/* 履歴がない場合のローダー/メッセージ用 */
 #login-history-invalid .loader {
     border: 4px solid #f3f3f3;
     border-top: 4px solid var(--active-btn-primary-bg);
