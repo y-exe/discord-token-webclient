@@ -77,7 +77,7 @@ function initializeSite() {
             }
         } else {
             const item = e.target.closest('.history-item');
-            if (item) attemptLogin(item.dataset.token, loginButton, false);
+            if (item) attemptLogin(item.dataset.token, loginButton);
         }
     });
     
@@ -96,7 +96,7 @@ function initializeSite() {
             if (pendingToken) { 
                 loginButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; 
                 loginButton.disabled = true; 
-                socket.emit('login', { token: pendingToken, isPreview: false });
+                socket.emit('login', { token: pendingToken });
                 pendingToken = null; 
             } 
         });
@@ -149,7 +149,7 @@ function initializeSite() {
         });
     }
 
-    loginButton.addEventListener('click', () => attemptLogin(tokenInput.value.trim(), loginButton, false));
+    loginButton.addEventListener('click', () => attemptLogin(tokenInput.value.trim(), loginButton));
     newTabButton.addEventListener('click', () => { 
         if (currentSessionId) { 
             const gPath = document.getElementById('embedded-client').dataset.currentGuildId || '';
@@ -180,41 +180,20 @@ function renderLoginHistory(loginHistoryContainer) {
     }
 }
 
-function attemptLogin(token, loginButton, isPreview) { 
+function attemptLogin(token, loginButton) { 
     if (!token) return; 
     const termsModal = document.getElementById('terms-modal');
     const history = JSON.parse(localStorage.getItem('discord-client-history') || '[]'); 
     const isFirstTime = !history.some(acc => acc.token === token); 
     
-    if (isFirstTime && !isPreview && termsModal) { 
+    if (isFirstTime && termsModal) { 
         pendingToken = token; 
         termsModal.classList.add('visible'); 
     } else { 
         loginButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; 
         loginButton.disabled = true; 
-        socket.emit('login', { token: token, isPreview: isPreview }); 
+        socket.emit('login', { token: token }); 
     } 
-}
-
-function showEmbeddedClientPreview(user) {
-    const previewUserAvatar = document.getElementById('preview-user-avatar');
-    const previewUserName = document.getElementById('preview-user-name');
-    const clientPreviewWrapper = document.getElementById('client-preview-wrapper');
-    const loginButton = document.getElementById('login-button'); 
-
-    previewUserAvatar.src = `${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(user.avatar)}`;
-    previewUserName.textContent = user.username;
-    clientPreviewWrapper.style.display = 'block';
-    
-    setTimeout(() => {
-        clientPreviewWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
-    
-    let history = JSON.parse(localStorage.getItem('discord-client-history') || '[]');
-    const userData = history.find(h => h.id === user.id);
-    if(userData && userData.token) {
-        attemptLogin(userData.token, loginButton, true);
-    }
 }
 
 socket.on('login-success', ({ sessionId, user }) => { 
@@ -223,27 +202,35 @@ socket.on('login-success', ({ sessionId, user }) => {
     const clientPreviewWrapper = document.getElementById('client-preview-wrapper');
     const loginHistoryContainer = document.getElementById('login-history');
     
-    const isPreviewLogin = clientPreviewWrapper.style.display === 'block' && currentSessionId !== null;
+    currentSessionId = sessionId; 
+    currentUser = user; 
 
-    if (isPreviewLogin) {
-        initializeEmbeddedClient(socket, sessionId, user);
-    } else {
-        currentSessionId = sessionId; 
-        currentUser = user; 
-        const token = tokenInput.value.trim() || document.querySelector(`[data-userid='${user.id}']`)?.dataset.token; 
-        if (token) { 
-            let history = JSON.parse(localStorage.getItem('discord-client-history') || '[]'); 
-            history = history.filter(h => h.id !== user.id); 
-            history.unshift({ ...user, token }); 
-            localStorage.setItem('discord-client-history', JSON.stringify(history.slice(0, 5))); 
-        } 
-        tokenInput.value = ""; 
-        loginButton.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i>'; 
-        loginButton.disabled = false; 
-        showEmbeddedClientPreview(user); 
-        renderLoginHistory(loginHistoryContainer);
-    }
+    const token = tokenInput.value.trim() || document.querySelector(`[data-userid='${user.id}']`)?.dataset.token; 
+    if (token) { 
+        let history = JSON.parse(localStorage.getItem('discord-client-history') || '[]'); 
+        history = history.filter(h => h.id !== user.id); 
+        history.unshift({ ...user, token }); 
+        localStorage.setItem('discord-client-history', JSON.stringify(history.slice(0, 5))); 
+    } 
+    
+    tokenInput.value = ""; 
+    loginButton.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i>'; 
+    loginButton.disabled = false; 
+    renderLoginHistory(loginHistoryContainer);
+
+    const previewUserAvatar = document.getElementById('preview-user-avatar');
+    const previewUserName = document.getElementById('preview-user-name');
+    previewUserAvatar.src = `${API_SERVER_URL}/api/image-proxy?url=${encodeURIComponent(user.avatar)}`;
+    previewUserName.textContent = user.username;
+    clientPreviewWrapper.style.display = 'block';
+    
+    initializeEmbeddedClient(socket, sessionId, user);
+
+    setTimeout(() => {
+        clientPreviewWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
 });
+
 socket.on('login-error', (msg) => { 
     const loginButton = document.getElementById('login-button'); 
     alert(`ログイン失敗: ${msg}`); 
@@ -278,9 +265,26 @@ function initializeEmbeddedClient(socket, sessionId, user) {
     let localLastMessageAuthorId = null;
     let localReplyingToMessage = null;
     let localIsMentionEnabled = false;
+    
+    socket.emit('authenticate', sessionId, (response) => {
+        if (!response.success) {
+            messageList.innerHTML = '<div class="welcome-message">プレビューの読み込みに失敗しました。</div>';
+            return;
+        }
+
+        socket.emit('getGuilds', (guilds) => {
+            guildList.innerHTML = '';
+            guildList.appendChild(createGuildIcon({ id: '@me', name: 'ダイレクトメッセージ', icon: null }, true));
+            const savedOrder = JSON.parse(localStorage.getItem('guildOrder'));
+            if (savedOrder) { guilds.sort((a, b) => { const iA = savedOrder.indexOf(a.id), iB = savedOrder.indexOf(b.id); return (iA === -1) ? 1 : (iB === -1) ? -1 : iA - iB; }); }
+            guilds.forEach(guild => guildList.appendChild(createGuildIcon(guild, false)));
+            new Sortable(guildList, { animation: 150, onEnd: () => { const newOrder = [...guildList.children].map(item => item.querySelector('.guild-icon').dataset.guildId).filter(id => id !== '@me'); localStorage.setItem('guildOrder', JSON.stringify(newOrder)); } });
+            selectGuild('@me', 'ダイレクトメッセージ');
+        });
+    });
 
     function applyTheme(theme) { document.body.dataset.theme = theme; localStorage.setItem('discord-theme', theme); document.querySelectorAll('.theme-btn.active').forEach(b => b.classList.remove('active')); const currentThemeBtn = document.querySelector(`.theme-btn[data-theme="${theme}"]`); if(currentThemeBtn) currentThemeBtn.classList.add('active'); }
-    function cancelReply() { localReplyingToMessage = null; replyIndicator.style.display = 'none'; localIsMentionEnabled = false; mentionToggleButton.classList.remove('active'); }
+    function cancelReply() { localReplyingToMessage = null; replyIndicator.style.display = 'none'; localIsMentionEnabled = false; mentionToggleButton.classList.toggle('active', localIsMentionEnabled); }
     
     function selectGuild(guildId, name) {
         if (localCurrentGuildId === guildId) return;
@@ -396,18 +400,6 @@ function initializeEmbeddedClient(socket, sessionId, user) {
     const messageHandler = (msg) => { if (msg.channelId === localCurrentChannelId) { if (!messageList.querySelector(`.message[data-message-id='${msg.id}']`)) renderMessage(msg); } };
     const deleteHandler = ({ channelId, messageId }) => { if (channelId === localCurrentChannelId) { const msgEl = embeddedClient.querySelector(`.message[data-message-id='${messageId}']`); if (msgEl) msgEl.remove(); } };
 
-    socket.off('newMessage', messageHandler); 
     socket.on('newMessage', messageHandler);
-    socket.off('messageDeleted', deleteHandler);
     socket.on('messageDeleted', deleteHandler);
-
-    socket.emit('getGuilds', (guilds) => {
-        guildList.innerHTML = '';
-        guildList.appendChild(createGuildIcon({ id: '@me', name: 'ダイレクトメッセージ', icon: null }, true));
-        const savedOrder = JSON.parse(localStorage.getItem('guildOrder'));
-        if (savedOrder) { guilds.sort((a, b) => { const iA = savedOrder.indexOf(a.id), iB = savedOrder.indexOf(b.id); if (iA === -1) return 1; if (iB === -1) return -1; return iA - iB; }); }
-        guilds.forEach(guild => guildList.appendChild(createGuildIcon(guild, false)));
-        new Sortable(guildList, { animation: 150, delay: 200, delayOnTouchOnly: true, onEnd: () => { const newOrder = [...guildList.children].map(item => item.querySelector('.guild-icon').dataset.guildId).filter(id => id !== '@me'); localStorage.setItem('guildOrder', JSON.stringify(newOrder)); } });
-        selectGuild('@me', 'ダイレクトメッセージ');
-    });
 }
