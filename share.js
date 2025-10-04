@@ -39,16 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('discord-theme') || 'dark';
     applyTheme(savedTheme);
 
-    const redirectPath = sessionStorage.getItem('redirectPath');
-    sessionStorage.removeItem('redirectPath');
-    const path = redirectPath || (window.location.hash ? window.location.hash.substring(1) : window.location.pathname);
-
-    if (redirectPath && redirectPath !== window.location.pathname) {
-        window.history.replaceState(null, '', redirectPath);
-    } else if (window.location.hash && ('/' + path) !== window.location.pathname) {
-        window.history.replaceState(null, '', '/' + path);
-    }
-
+    const path = window.location.hash.substring(1);
     const pathParts = path.split('/').filter(p => p);
 
     if (pathParts[0] === 'share' && pathParts.length > 1) {
@@ -57,11 +48,8 @@ document.addEventListener('DOMContentLoaded', () => {
         initialChannelId = pathParts[3];
     }
     
-    if (socket.connected) {
-        initializeShareSession();
-    } else {
-        socket.on('connect', initializeShareSession, { once: true });
-    }
+    socket.on('connect', initializeShareSession);
+    if(socket.connected) initializeShareSession();
 });
 
 function initializeShareSession() {
@@ -70,7 +58,7 @@ function initializeShareSession() {
         errorPage.style.display = 'flex';
         return;
     }
-    socket.emit('joinShare', shareId, (response) => {
+    socket.emit('authenticate', shareId, (response) => {
         if (response.success) {
             permissions = response.permissions;
             loadingPage.style.display = 'none';
@@ -78,12 +66,13 @@ function initializeShareSession() {
             renderGuilds(response.guilds, initialGuildId, initialChannelId);
             if (!permissions.canSendMessage) { 
                 messageInput.placeholder = "メッセージの送信は許可されていません"; 
+                messageInput.disabled = true;
             }
         } else {
             loadingPage.style.display = 'none';
             const errorMessageEl = errorPage.querySelector('.error-message');
             if (errorMessageEl) {
-                 errorMessageEl.textContent = response.message || '不明なエラーが発生しました。';
+                 errorMessageEl.textContent = response.message || 'この共有リンクは存在しないか、有効期限が切れています。';
             }
             errorPage.style.display = 'flex';
         }
@@ -94,7 +83,7 @@ function initializeShareSession() {
         e.preventDefault();
         const content = messageInput.value.trim();
         if (content && currentChannelId && permissions.canSendMessage) {
-            socket.emit('sendSharedMessage', { channelId: currentChannelId, content, reply: replyingToMessage ? { messageId: replyingToMessage.id, mention: isMentionEnabled } : null });
+            socket.emit('sendMessage', { channelId: currentChannelId, content, reply: replyingToMessage ? { messageId: replyingToMessage.id, mention: isMentionEnabled } : null });
             messageInput.value = '';
             cancelReply();
         }
