@@ -4,6 +4,7 @@ const socket = io(API_SERVER_URL);
 const clientPage = document.getElementById('client-page');
 const invalidPage = document.getElementById('session-invalid-page');
 
+// ... (以降の変数宣言は変更なし) ...
 const clientContainer = document.getElementById('full-client-container');
 const guildList = document.getElementById('guild-list');
 const guildNameText = document.getElementById('guild-name-text');
