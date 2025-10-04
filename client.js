@@ -1,5 +1,3 @@
-// FOR client.html, demo.html, share.html ONLY
-
 const API_SERVER_URL = "https://api.yexe.xyz";
 const socket = io(API_SERVER_URL);
 
