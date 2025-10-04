@@ -1,3 +1,5 @@
+// FOR client.html, demo.html, share.html ONLY
+
 const API_SERVER_URL = "https://api.yexe.xyz";
 const socket = io(API_SERVER_URL);
 
@@ -195,7 +197,8 @@ function loadClientData(initialGuildId, initialChannelId) { loadGuilds(initialGu
 function loadGuilds(initialGuildId, initialChannelId) {
     socket.emit('getGuilds', (guilds) => {
         guildList.innerHTML = '';
-        guildList.appendChild(createGuildIcon({ id: '@me', name: 'ダイレクトメッセージ', icon: null }, true));
+        const dmIconName = (currentSessionId === 'demo') ? 'DEMO' : 'ダイレクトメッセージ';
+        guildList.appendChild(createGuildIcon({ id: '@me', name: dmIconName, icon: null }, true));
 
         if (currentSessionId !== 'demo') {
             const savedOrder = JSON.parse(localStorage.getItem('guildOrder'));
@@ -209,39 +212,47 @@ function loadGuilds(initialGuildId, initialChannelId) {
         }
 
         let targetGuildId = initialGuildId || '@me';
-
-        const guildData = guilds.find(g => g.id === targetGuildId) || { id: targetGuildId, name: 'ダイレクトメッセージ' };
+        const guildData = guilds.find(g => g.id === targetGuildId) || { id: targetGuildId, name: dmIconName };
         selectGuild(targetGuildId, guildData.name, initialChannelId);
     });
 }
 
+// ★★★ 最後の修正箇所 ★★★
 function selectGuild(guildId, name, initialChannelId = null) {
     if (currentGuildId === guildId && initialChannelId === null && currentChannelId !== null) return;
-    currentGuildId = guildId; currentChannelId = null;
+    currentGuildId = guildId; 
+    currentChannelId = null;
     document.querySelectorAll('.guild-icon.active').forEach(el => el.classList.remove('active'));
     const guildIconEl = document.querySelector(`[data-guild-id='${guildId}']`);
     if(guildIconEl) guildIconEl.classList.add('active');
-    guildNameText.textContent = name; channelNameText.textContent = 'チャンネルを選択';
+    
+    // チャンネルリストのヘッダー名を更新
+    guildNameText.textContent = name; 
+    channelNameText.textContent = 'チャンネルを選択';
+    
     messageList.innerHTML = '';
-
-    if (currentSessionId === 'demo') {
-        messageInput.placeholder = "デモモードではメッセージを送信できません";
-        messageInput.disabled = true;
-    } else {
-        messageInput.disabled = true;
-    }
-
+    messageInput.disabled = true;
     channelList.innerHTML = '';
     clientContainer.classList.remove('show-messages');
     messageList.style.display = 'none';
+
+    if (currentSessionId === 'demo') {
+        messageInput.placeholder = "デモモードではメッセージを送信できません";
+    }
 
     if(welcomeScreen){
         if (guildId === '@me' || !guildId) {
              welcomeScreen.style.display = 'flex';
              if (welcomeUserMessage) {
+                // デモモードの時のウェルカムメッセージ
                 if (currentSessionId === 'demo') {
-                    welcomeUserMessage.innerHTML = 'デモ画面へようこそ!!<p style="color: var(--text-secondary); font-size: 1.2rem; margin: 0;">一部のサーバーをプレビューできます<br>※メッセージの送信は不可能です</p>';
-                } else if(currentUser) {
+                    welcomeUserMessage.innerHTML = '<h1>デモ画面へようこそ!!</h1><p style="color: var(--text-secondary); font-size: 1.2rem; margin: 0;">一部のサーバーをプレビューできます<br>※メッセージの送信は不可能です</p>';
+                    // スマホ表示でもウェルカム画面を見れるようにする
+                    clientContainer.classList.add('show-messages');
+                    channelNameText.textContent = 'デモ';
+                } 
+                // 通常モードの時のウェルカムメッセージ
+                else if(currentUser) {
                     welcomeUserMessage.innerHTML = `ようこそ、${currentUser.username} さん！`;
                 }
              }
@@ -252,12 +263,10 @@ function selectGuild(guildId, name, initialChannelId = null) {
 
     updateURL();
 
-    if (guildId === '@me' && currentSessionId !== 'demo') {
-        loadDms(initialChannelId);
-    } else if (guildId === '@me' && currentSessionId === 'demo') {
-        channelList.innerHTML = '';
-    } else {
-        loadChannels(guildId, initialChannelId);
+    if (guildId === '@me') { 
+        if(currentSessionId !== 'demo') loadDms(initialChannelId);
+    } else { 
+        loadChannels(guildId, initialChannelId); 
     }
 }
 
@@ -303,7 +312,6 @@ function selectChannel(channelId, name) {
     messageList.innerHTML = '<div class="welcome-message">メッセージを読み込み中...</div>';
 
     if (currentSessionId === 'demo') {
-        messageInput.placeholder = "デモモードではメッセージを送信できません";
         messageInput.disabled = true;
     } else {
         messageInput.disabled = false;
