@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'gg sans';
+  src: url('/fonts/ggsans-Normal.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'gg sans';
+  src: url('/fonts/ggsans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ログイン画面用 (白背景向け) */
+.light-scrollbar::-webkit-scrollbar { width: 8px; }
+.light-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+.light-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+.light-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+
+/* クライアント画面用 (黒背景向け) */
+.dark-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; background-color: #08080a; }
+.dark-scrollbar::-webkit-scrollbar-thumb { background-color: #1a1b1e; border-radius: 4px; }
+.dark-scrollbar::-webkit-scrollbar-track { background-color: #08080a; }

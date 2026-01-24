@@ -1,0 +1,14 @@
+export const API_URL = "https://d_api.yexe.xyz/";
+
+export const getProxyUrl = (url) => {
+  return url;
+};
+
+export const formatTimestamp = (ts) => {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const now = new Date();
+  const time = d.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
+  if (d.toDateString() === now.toDateString()) return `今日 ${time}`;
+  return `${d.toLocaleDateString('ja-JP')} ${time}`;
+};
