@@ -9,7 +9,6 @@ export default defineConfig({
   server: {
     host: true, 
     allowedHosts: [
-      'test001.yexe.xyz',
       'localhost'
     ]
   }

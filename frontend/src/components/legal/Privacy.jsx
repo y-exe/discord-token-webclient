@@ -1,22 +1,35 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Header from '../auth/Header';
 import Footer from '../auth/Footer';
 import MouseEffectCard from '../ui/MouseEffectCard';
+import Head from '../seo/Head';
 
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.2 } } };
 const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 50, damping: 20 } } };
 
 export default function Privacy() {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <div className="min-h-screen w-full bg-white dark:bg-black text-gray-900 dark:text-gray-100 flex flex-col font-google transition-colors duration-300 relative selection:bg-indigo-500/30">
+      <Head 
+        title="プライバシーポリシー" 
+        description="Discord Web Token Clientにおける個人情報やトークンの取り扱いに関するポリシーです。安全な利用環境への取り組みについて説明しています。"
+        path="/privacy"
+      />
       <Header />
       
-      <div className="flex-grow flex flex-col relative overflow-hidden">
-        <MouseEffectCard className="absolute inset-0 z-0 bg-transparent border-none rounded-none" />
+      <div className="flex-grow flex flex-col relative">
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <MouseEffectCard className="w-full h-full bg-transparent border-none rounded-none" />
+        </div>
         
         <main className="container mx-auto max-w-4xl py-32 px-6 flex-grow relative z-10">
           <motion.div initial="hidden" animate="visible" variants={containerVariants}>
-            <motion.h1 variants={itemVariants} className="text-4xl md:text-5xl font-extrabold mb-12 tracking-tight">プライバシーポリシー</motion.h1>
+            <motion.h1 variants={itemVariants} className="text-4xl md:text-5xl font-extrabold mb-12 tracking-tight text-gray-900 dark:text-white">プライバシーポリシー</motion.h1>
             
             <div className="space-y-12 text-gray-600 dark:text-gray-300 leading-relaxed font-google">
               <motion.section variants={itemVariants}>

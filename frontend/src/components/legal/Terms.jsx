@@ -1,23 +1,35 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Header from '../auth/Header';
 import Footer from '../auth/Footer';
 import MouseEffectCard from '../ui/MouseEffectCard';
+import Head from '../seo/Head';
 
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.2 } } };
 const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 50, damping: 20 } } };
 
 export default function Terms() {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <div className="min-h-screen w-full bg-white dark:bg-black text-gray-900 dark:text-gray-100 flex flex-col font-google transition-colors duration-300 relative selection:bg-indigo-500/30">
+      <Head 
+        title="利用規約" 
+        description="Discord Web Token Clientの利用規約です。本サービスの利用に関するルールや免責事項についてご確認いただけます。"
+        path="/terms"
+      />
       <Header />
       
-      {/* ドット背景をメイン部分のみに制限 */}
-      <div className="flex-grow flex flex-col relative overflow-hidden">
-        <MouseEffectCard className="absolute inset-0 z-0 bg-transparent border-none rounded-none" />
+      <div className="flex-grow flex flex-col relative">
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <MouseEffectCard className="w-full h-full bg-transparent border-none rounded-none" />
+        </div>
         
         <main className="container mx-auto max-w-4xl py-32 px-6 flex-grow relative z-10">
           <motion.div initial="hidden" animate="visible" variants={containerVariants}>
-            <motion.h1 variants={itemVariants} className="text-4xl md:text-5xl font-extrabold mb-12 tracking-tight">利用規約</motion.h1>
+            <motion.h1 variants={itemVariants} className="text-4xl md:text-5xl font-extrabold mb-12 tracking-tight text-gray-900 dark:text-white">利用規約</motion.h1>
             
             <div className="space-y-12 text-gray-600 dark:text-gray-300 leading-relaxed font-google">
               <motion.section variants={itemVariants}>
@@ -38,7 +50,7 @@ export default function Terms() {
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                   <span className="w-1.5 h-6 bg-indigo-500 rounded-full"></span>3. 禁止事項
                 </h2>
-                <ul className="list-disc ml-5 space-y-3">
+                <ul className="list-disc ml-5 space-y-3 text-gray-600 dark:text-gray-300">
                   <li>スパム、嫌がらせ、またはDiscordサーバーの運営を妨害する行為。</li>
                   <li>自動化されたスクリプト等による過度な負荷をかける行為。</li>
                   <li>他人のトークンを不正に取得・使用する行為。</li>

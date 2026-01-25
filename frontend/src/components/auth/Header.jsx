@@ -8,22 +8,22 @@ const menuItems = [
     { 
         title: "Project", 
         links: [
-            { text: "GitHub", url: "https://github.com/y-exe/discord-token-webclient", desc: "ソースコードを閲覧" }, 
-            { text: "Commitlog", url: "https://github.com/y-exe/discord-token-webclient/commits/main/", desc: "更新履歴を確認" }
+            { text: "GitHub", url: "https://github.com/y-exe/discord-token-webclient", isExternal: true, desc: "ソースコードを閲覧" }, 
+            { text: "Commitlog", url: "https://github.com/y-exe/discord-token-webclient/commits/main/", isExternal: true, desc: "更新履歴を確認" }
         ] 
     },
     { 
         title: "Resources", 
         links: [
-            { text: "Discord.js", url: "https://discord.js.org/", desc: "公式ドキュメント" }, 
-            { text: "Selfbot v13", url: "https://discordjs-self-v13.netlify.app/", desc: "Selfbot用ドキュメント" }
+            { text: "Discord.js", url: "https://discord.js.org/", isExternal: true, desc: "公式ドキュメント" }, 
+            { text: "Selfbot v13", url: "https://discordjs-self-v13.netlify.app/", isExternal: true, desc: "Selfbot用ドキュメント" }
         ] 
     },
     { 
         title: "Legal", 
         links: [
-            { text: "Terms", url: "#terms", desc: "利用規約" }, 
-            { text: "Privacy", url: "#privacy", desc: "プライバシーポリシー" }
+            { text: "Terms", url: "/terms", isExternal: false, desc: "利用規約" }, 
+            { text: "Privacy", url: "/privacy", isExternal: false, desc: "プライバシーポリシー" }
         ] 
     },
 ];
@@ -36,7 +36,6 @@ export default function Header() {
             <div className="container mx-auto px-6 h-16 flex items-center justify-between font-google">
                 <div className="flex items-center gap-10">
                     <div className="flex items-center gap-2">
-                        {/* Link を使って確実に /login に戻れるようにしてみた */}
                         <Link to="/login" className="font-bold text-xl tracking-tight text-gray-900 dark:text-white">yexe.xyz</Link>
                     </div>
                     <nav className="hidden md:flex items-center gap-1">
@@ -51,10 +50,17 @@ export default function Header() {
                                         <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2 }} className="absolute top-full left-0 w-64 pt-2">
                                             <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xl p-2 overflow-hidden">
                                                 {item.links.map((link, j) => (
-                                                    <a key={j} href={link.url} className="block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors group">
-                                                        <div className="text-sm font-bold text-gray-900 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{link.text}</div>
-                                                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{link.desc}</div>
-                                                    </a>
+                                                    link.isExternal ? (
+                                                        <a key={j} href={link.url} target="_blank" rel="noopener noreferrer" className="block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors group">
+                                                            <div className="text-sm font-bold text-gray-900 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{link.text}</div>
+                                                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{link.desc}</div>
+                                                        </a>
+                                                    ) : (
+                                                        <Link key={j} to={link.url} className="block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors group">
+                                                            <div className="text-sm font-bold text-gray-900 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{link.text}</div>
+                                                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{link.desc}</div>
+                                                        </Link>
+                                                    )
                                                 ))}
                                             </div>
                                         </motion.div>

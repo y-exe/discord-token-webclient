@@ -1,4 +1,5 @@
 import { FaDiscord } from 'react-icons/fa6';
+import { Link } from 'react-router-dom';
 
 export default function Footer() {
   const menuItems = [
@@ -18,7 +19,10 @@ export default function Footer() {
     },
   ];
   const copyright = `© ${new Date().getFullYear()} yexe. All rights reserved.`;
-  const bottomLinks = [{ text: "Terms", url: "#terms" }, { text: "Privacy", url: "#privacy" }];
+  const bottomLinks = [
+    { text: "Terms", url: "/terms" },
+    { text: "Privacy", url: "/privacy" }
+  ];
 
   return (
     <footer className="w-full py-16 border-t border-gray-100 dark:border-zinc-800 bg-white dark:bg-black relative z-10 transition-colors duration-300">
@@ -58,7 +62,7 @@ export default function Footer() {
           <ul className="flex flex-wrap gap-4">
             {bottomLinks.map((link, linkIdx) => (
               <li key={linkIdx} className="hover:text-black dark:hover:text-white transition-colors underline underline-offset-2">
-                <a href={link.url}>{link.text}</a>
+                <Link to={link.url}>{link.text}</Link>
               </li>
             ))}
           </ul>

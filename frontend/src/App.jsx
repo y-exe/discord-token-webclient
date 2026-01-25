@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { ThemeProvider } from 'next-themes'; 
-
-import Login from './components/auth/Login';
-import Terms from './components/legal/Terms';
-import Privacy from './components/legal/Privacy';
-import DiscordClient from './components/DiscordClient';
 import { API_URL } from './utils/helpers';
+
+// Lazy loading components
+const Login = lazy(() => import('./components/auth/Login'));
+const Terms = lazy(() => import('./components/legal/Terms'));
+const Privacy = lazy(() => import('./components/legal/Privacy'));
+const DiscordClient = lazy(() => import('./components/DiscordClient'));
 
 // Cookie操作用ヘルパー
 const setCookie = (name, value, days) => {
@@ -46,7 +47,6 @@ const RequireAuth = ({ children }) => {
             return;
         }
 
-        // Socketがなければ作成 あればそのまま
         if (!globalSocket) {
             globalSocket = io(API_URL, { 
                 transports: ['websocket'],
@@ -72,14 +72,10 @@ const RequireAuth = ({ children }) => {
                 navigate('/login', { replace: true });
             });
         } else {
-            // すでにSocketがあり、かつ準備中なら状態を同期
             if (globalSocket.connected) {
                 globalSocket.emit('login', { token: session.token, isBot: session.isBot });
             }
         }
-
-        return () => {
-        };
     }, [navigate]);
 
     if (!isReady || !globalSocket) {
@@ -99,16 +95,22 @@ export default function App() {
 
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/privacy" element={<Privacy />} />
-        
-        <Route path="/:guildId/:channelId" element={<RequireAuth><DiscordClient /></RequireAuth>} />
-        <Route path="/:guildId" element={<RequireAuth><DiscordClient /></RequireAuth>} />
-        
-        <Route path="/" element={ (location.pathname === '/' && location.hash === '') ? <Navigate to="/login" replace /> : <Navigate to="/@me" replace /> } />
-      </Routes>
+      <Suspense fallback={
+        <div className="h-screen w-screen bg-white dark:bg-[#050505] flex items-center justify-center">
+          <div className="animate-spin h-10 w-10 border-4 border-[#5865F2] rounded-full border-t-transparent"></div>
+        </div>
+      }>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          
+          <Route path="/:guildId/:channelId" element={<RequireAuth><DiscordClient /></RequireAuth>} />
+          <Route path="/:guildId" element={<RequireAuth><DiscordClient /></RequireAuth>} />
+          
+          <Route path="/" element={ (location.pathname === '/' && location.hash === '') ? <Navigate to="/login" replace /> : <Navigate to="/@me" replace /> } />
+        </Routes>
+      </Suspense>
     </ThemeProvider>
   );
 }
