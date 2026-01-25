@@ -2,27 +2,41 @@ import { FaHashtag, FaVolumeHigh, FaPodcast, FaBullhorn, FaMessage } from 'react
 import { BiSolidRightArrow } from "react-icons/bi";
 import { getProxyUrl } from '../../utils/helpers';
 
+const ChannelIcon = ({ type }) => {
+    switch (type) {
+        case 'GUILD_VOICE': case 2: return <FaVolumeHigh size={16} className="text-[#80848e] group-hover:text-white" />;
+        case 'GUILD_STAGE_VOICE': case 13: return <FaPodcast size={16} className="text-[#80848e] group-hover:text-white" />;
+        case 'GUILD_NEWS': case 5: return <FaBullhorn size={16} className="text-[#80848e] group-hover:text-white" />;
+        case 'GUILD_FORUM': case 15: return <FaMessage size={15} className="text-[#80848e] group-hover:text-white" />;
+        default: return <FaHashtag size={18} className="text-[#80848e] group-hover:text-white" />;
+    }
+};
+
 const ChannelSidebar = ({ 
   currentGuild, channels, currentChannelId, onSelectChannel, 
   joinedVoiceChannelId, onLeaveVoice 
 }) => {
+  const isDMList = currentGuild?.id === '@me';
+
   return (
     <div className="h-full flex-1 bg-discord-sidebar flex flex-col min-w-0 overflow-hidden select-none">
       <header className="h-12 px-4 flex items-center justify-between shadow-sm border-b border-discord-border shrink-0 cursor-pointer hover:bg-[#1f2023] transition-colors">
-        <h1 className="font-bold text-white truncate text-[15px]">{currentGuild?.name || "サーバー選択"}</h1>
+        <h1 className="font-bold text-white truncate text-[15px]">
+          {isDMList ? "ダイレクトメッセージ" : (currentGuild?.name || "サーバー選択")}
+        </h1>
       </header>
       
       <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4 custom-scrollbar">
         {channels.map((cat) => (
           <div key={cat.id || 'uncategorized'}>
-            {cat.name && (
+            {/* カテゴリー名はDMリスト以外の場合のみ表示 */}
+            {cat.name && !isDMList && (
               <div className="flex items-center px-1 mb-1 text-xs font-bold text-discord-muted uppercase hover:text-white cursor-pointer transition-colors mt-4">
                 <BiSolidRightArrow size={8} className="rotate-90 mr-1" />{cat.name}
               </div>
             )}
             
             {cat.channels && cat.channels.map(ch => {
-              const isForum = ch.type === 'GUILD_FORUM' || ch.type === 15;
               const isActive = currentChannelId === ch.id;
 
               return (
@@ -30,18 +44,31 @@ const ChannelSidebar = ({
                   <div 
                     onClick={() => onSelectChannel(ch)} 
                     className={`
-                      px-2 py-[6px] rounded mx-1 flex items-center gap-1.5 cursor-pointer group transition-all duration-75
+                      px-2 py-[6px] rounded mx-1 flex items-center gap-2.5 cursor-pointer group transition-all duration-75
                       ${isActive || joinedVoiceChannelId === ch.id
                         ? 'bg-[#3f4147] text-white' 
                         : 'text-[#949ba4] hover:bg-[#35373c] hover:text-white'
                       }
                     `}
                   >
-                    <ChannelIcon type={ch.type} />
-                    <span className="truncate font-medium">{ch.name}</span>
+                    {isDMList ? (
+                      // DMモード時はユーザーアバターを表示
+                      <div className="relative shrink-0">
+                        <img 
+                          src={getProxyUrl(ch.avatar || "https://cdn.discordapp.com/embed/avatars/0.png")} 
+                          className="w-8 h-8 rounded-full object-cover" 
+                          alt=""
+                        />
+                      </div>
+                    ) : (
+                      // サーバーモード時はタイプ別のアイコンを表示
+                      <ChannelIcon type={ch.type} />
+                    )}
+                    <span className={`truncate font-medium ${isDMList ? 'text-[15px]' : ''}`}>{ch.name}</span>
                   </div>
 
-                  {ch.threads && ch.threads.length > 0 && !isForum && (
+                  {/* スレッド表示 (フォーラム以外かつDM以外の場合) */}
+                  {!isDMList && ch.threads && ch.threads.length > 0 && !(ch.type === 'GUILD_FORUM' || ch.type === 15) && (
                     <div className="ml-4 border-l-2 border-[#4e5058] my-1">
                       {ch.threads.map(thread => (
                         <div 
@@ -62,8 +89,8 @@ const ChannelSidebar = ({
                     </div>
                   )}
 
-                  {/* VCメンバー表示 */}
-                  {(ch.type === 'GUILD_VOICE' || ch.type === 'GUILD_STAGE_VOICE' || ch.type === 2 || ch.type === 13) && ch.members && ch.members.length > 0 && (
+                  {/* ボイスチャンネルのメンバー表示 */}
+                  {!isDMList && (ch.type === 'GUILD_VOICE' || ch.type === 'GUILD_STAGE_VOICE' || ch.type === 2 || ch.type === 13) && ch.members && ch.members.length > 0 && (
                     <div className="ml-8 mt-1 space-y-0.5">
                       {ch.members.map(m => (
                         <div key={m.id} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-[#ffffff0a] cursor-pointer">
@@ -80,6 +107,7 @@ const ChannelSidebar = ({
         ))}
       </div>
 
+      {/* ボイス接続中インジケーター */}
       {joinedVoiceChannelId && (
         <div className="bg-[#1e1f22] px-3 py-1.5 border-t border-discord-border flex items-center justify-between shadow-lg">
           <div className="min-w-0 text-discord-green text-[10px] font-bold flex items-center gap-1">
@@ -93,16 +121,6 @@ const ChannelSidebar = ({
       )}
     </div>
   );
-};
-
-const ChannelIcon = ({ type }) => {
-    switch (type) {
-        case 'GUILD_VOICE': case 2: return <FaVolumeHigh size={16} className="text-[#80848e] group-hover:text-white" />;
-        case 'GUILD_STAGE_VOICE': case 13: return <FaPodcast size={16} className="text-[#80848e] group-hover:text-white" />;
-        case 'GUILD_NEWS': case 5: return <FaBullhorn size={16} className="text-[#80848e] group-hover:text-white" />;
-        case 'GUILD_FORUM': case 15: return <FaMessage size={15} className="text-[#80848e] group-hover:text-white" />;
-        default: return <FaHashtag size={18} className="text-[#80848e] group-hover:text-white" />;
-    }
 };
 
 export default ChannelSidebar;

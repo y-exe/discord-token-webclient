@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaGithub, FaChevronDown } from 'react-icons/fa6';
+import { Link } from 'react-router-dom';
 import { ToggleTheme } from '../ui/ThemeToggle';
 
 const menuItems = [
@@ -33,49 +34,26 @@ export default function Header() {
     return (
         <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-200 dark:border-zinc-800 transition-colors duration-300">
             <div className="container mx-auto px-6 h-16 flex items-center justify-between font-google">
-                
-                {/* 左側グループ (ロゴ + ナビ) */}
                 <div className="flex items-center gap-10">
                     <div className="flex items-center gap-2">
-                        <a href="/" className="font-bold text-xl tracking-tight text-gray-900 dark:text-white">yexe.xyz</a>
+                        {/* Link を使って確実に /login に戻れるようにしてみた */}
+                        <Link to="/login" className="font-bold text-xl tracking-tight text-gray-900 dark:text-white">yexe.xyz</Link>
                     </div>
-
-                    {/* Navigation - 左寄せ配置 */}
                     <nav className="hidden md:flex items-center gap-1">
                         {menuItems.map((item, i) => (
-                            <div 
-                                key={i}
-                                className="relative"
-                                onMouseEnter={() => setHoveredIndex(i)}
-                                onMouseLeave={() => setHoveredIndex(null)}
-                            >
+                            <div key={i} className="relative" onMouseEnter={() => setHoveredIndex(i)} onMouseLeave={() => setHoveredIndex(null)}>
                                 <button className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors flex items-center gap-1 group">
                                     {item.title}
                                     <FaChevronDown size={10} className={`transition-transform duration-200 ${hoveredIndex === i ? 'rotate-180' : ''}`} />
                                 </button>
-
                                 <AnimatePresence>
                                     {hoveredIndex === i && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="absolute top-full left-0 w-64 pt-2"
-                                        >
+                                        <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2 }} className="absolute top-full left-0 w-64 pt-2">
                                             <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xl p-2 overflow-hidden">
                                                 {item.links.map((link, j) => (
-                                                    <a 
-                                                        key={j} 
-                                                        href={link.url} 
-                                                        className="block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors group"
-                                                    >
-                                                        <div className="text-sm font-bold text-gray-900 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
-                                                            {link.text}
-                                                        </div>
-                                                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                            {link.desc}
-                                                        </div>
+                                                    <a key={j} href={link.url} className="block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors group">
+                                                        <div className="text-sm font-bold text-gray-900 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{link.text}</div>
+                                                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{link.desc}</div>
                                                     </a>
                                                 ))}
                                             </div>
@@ -86,18 +64,9 @@ export default function Header() {
                         ))}
                     </nav>
                 </div>
-
-                {/* 右側アクション */}
                 <div className="flex items-center gap-4">
                     <ToggleTheme />
-                    <a 
-                        href="https://github.com/y-exe/discord-token-webclient" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors"
-                    >
-                        <FaGithub size={24} />
-                    </a>
+                    <a href="https://github.com/y-exe/discord-token-webclient" target="_blank" rel="noopener noreferrer" className="text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors"><FaGithub size={24} /></a>
                 </div>
             </div>
         </header>

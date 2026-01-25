@@ -1,7 +1,8 @@
 # Discord Web Token Client
 
-Socket.ioとdiscord.jsを使用した、ブラウザで動作する軽量DiscordTokenクライアント
-Botトークンおよびユーザー個人トークン（Selfbot）の両方に対応しています。
+Socket.ioとdiscord.jsを使用した、ブラウザで動作する軽量DiscordTokenクライアントです
+Botトークンおよびユーザー個人トークン（Selfbot）の両方に対応しています
+まだバグだらけかも
 
 ## 特徴
 -  **高速・軽量**: Socket.io によるリアルタイム通信

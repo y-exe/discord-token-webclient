@@ -2,11 +2,6 @@ import { useEffect, useRef } from "react";
 import { cn } from "../../lib/utils";
 import { useTheme } from "next-themes";
 
-// ★ パラメータ調整
-const DOT_SPACING = 16;       // ドットの間隔（さらに狭く）
-const DOT_SIZE = 1.0;         // ドットのサイズ（さらに小さく）
-const ANIMATION_SPEED = 0.04; // アニメーション速度
-
 export default function MouseEffectCard({ className, children }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -21,28 +16,32 @@ export default function MouseEffectCard({ className, children }) {
     let animationFrameId;
     let time = 0;
 
+    const FIXED_SPACING = 28; 
+    const FIXED_DOT_SIZE = 1.6; 
+    const ANIMATION_SPEED = 0.035;
+
     const resizeCanvas = () => {
         const container = containerRef.current;
         if (!container || !ctx) return;
         
+        const rect = container.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        canvas.width = container.offsetWidth * dpr;
-        canvas.height = container.offsetHeight * dpr;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
         ctx.scale(dpr, dpr);
 
         dots = [];
-        const cols = Math.ceil(container.offsetWidth / DOT_SPACING);
-        const rows = Math.ceil(container.offsetHeight / DOT_SPACING);
+        const cols = Math.ceil(rect.width / FIXED_SPACING);
+        const rows = Math.ceil(rect.height / FIXED_SPACING);
 
-        for (let i = 0; i < cols; i++) {
-            for (let j = 0; j < rows; j++) {
+        for (let i = 0; i <= cols; i++) {
+            for (let j = 0; j <= rows; j++) {
                 dots.push({
-                    baseX: i * DOT_SPACING,
-                    baseY: j * DOT_SPACING,
+                    x: i * FIXED_SPACING,
+                    y: j * FIXED_SPACING,
                     phase: Math.random() * Math.PI * 2,
-                    speed: 0.4 + Math.random() * 0.6,
-                    // ★ 基本の不透明度をさらに上げる
-                    baseOpacity: 0.3 + Math.random() * 0.4 
+                    speed: 0.5 + Math.random() * 0.5,
+                    baseOpacity: 0.2 + Math.random() * 0.3 
                 });
             }
         }
@@ -53,18 +52,16 @@ export default function MouseEffectCard({ className, children }) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        ctx.fillStyle = isDark ? 'rgba(128, 128, 128, 0.6)' : 'rgba(160, 160, 160, 0.6)';
+        
+        ctx.fillStyle = isDark ? 'rgba(160, 160, 160, 1)' : 'rgba(100, 100, 100, 1)';
         
         time += ANIMATION_SPEED;
 
         dots.forEach(dot => {
             const scale = (Math.sin(time * dot.speed + dot.phase) + 1) / 2;
+            ctx.globalAlpha = dot.baseOpacity + scale * 0.45;
             
-            // ★ 不透明度の変化をより大きく
-            ctx.globalAlpha = dot.baseOpacity + scale * 0.6;
-
-            // ★ 円(arc)から四角形(fillRect)に変更
-            ctx.fillRect(dot.baseX, dot.baseY, DOT_SIZE, DOT_SIZE);
+            ctx.fillRect(dot.x, dot.y, FIXED_DOT_SIZE, FIXED_DOT_SIZE);
         });
 
         animationFrameId = requestAnimationFrame(animate);
@@ -83,14 +80,13 @@ export default function MouseEffectCard({ className, children }) {
   }, [theme]);
 
   return (
-    <div
-      ref={containerRef}
-      className={cn("relative w-full h-full overflow-hidden isolate", className)}
-    >
-      <canvas ref={canvasRef} className="absolute inset-0 z-0" />
-      <div className="relative z-10 h-full w-full">
-        {children}
-      </div>
+    <div ref={containerRef} className={cn("relative w-full h-full overflow-hidden isolate", className)}>
+      <canvas 
+        ref={canvasRef} 
+        className="absolute inset-0 z-0 pointer-events-none" 
+        style={{ width: '100%', height: '100%' }} 
+      />
+      <div className="relative z-10 h-full w-full">{children}</div>
     </div>
   );
 }

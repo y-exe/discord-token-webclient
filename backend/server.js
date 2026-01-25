@@ -5,20 +5,14 @@ const axios = require('axios');
 const { Server } = require("socket.io");
 const cors = require('cors');
 
-// Selfbot用 (User Token)
 const { Client: SelfClient } = require('discord.js-selfbot-v13');
-
-// 公式Bot用 (Bot Token)
-let BotClient, GatewayIntentBits, Partials, ChannelType;
+let BotClient, GatewayIntentBits, Partials;
 try {
     const Discord = require('discord.js');
     BotClient = Discord.Client;
     GatewayIntentBits = Discord.GatewayIntentBits;
     Partials = Discord.Partials;
-    ChannelType = Discord.ChannelType;
-} catch (e) {
-    console.log("discord.js (v14) is not installed. Bot mode might not work properly.");
-}
+} catch (e) {}
 
 const app = express();
 app.use(cors({ origin: "*" }));
@@ -26,11 +20,7 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 });
 
 const sessions = new Map();
-const voiceConnections = new Map();
-
-// 音声関連ライブラリ
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType, VoiceConnectionStatus, entersState, EndBehaviorType } = require('@discordjs/voice');
-const { PassThrough } = require('stream');
+const loginQueue = new Set(); 
 
 app.get('/api/image-proxy', async (req, res) => {
     const imageUrl = req.query.url;
@@ -42,62 +32,52 @@ app.get('/api/image-proxy', async (req, res) => {
     } catch (error) { res.status(500).send('Failed'); }
 });
 
-// チャンネルタイプ判定用ヘルパー (v13文字列 / v14数値を吸収)
-const isCategory = (type) => type === 'GUILD_CATEGORY' || type === 4; // 4: GuildCategory
-const isText = (type) => type === 'GUILD_TEXT' || type === 0; // 0: GuildText
-const isVoice = (type) => type === 'GUILD_VOICE' || type === 2; // 2: GuildVoice
-const isStage = (type) => type === 'GUILD_STAGE_VOICE' || type === 13; // 13: GuildStageVoice
-const isForum = (type) => type === 'GUILD_FORUM' || type === 15; // 15: GuildForum
-const isNews = (type) => type === 'GUILD_NEWS' || type === 5; // 5: GuildAnnouncement
+const snowflakeToTimestamp = (id) => Number(BigInt(id) >> 22n) + 1420070400000;
+
+const getDMChannels = async (client) => {
+    const dms = client.channels.cache.filter(c => c.type === 'DM' || c.type === 'GROUP_DM' || c.type === 1 || c.type === 3);
+    return Array.from(dms.values()).map(c => {
+        const recipient = c.type === 'DM' || c.type === 1 ? c.recipient : null;
+        return {
+            id: c.id,
+            name: c.type === 'GROUP_DM' || c.type === 3 ? (c.name || "グループDM") : (recipient ? recipient.username : "不明なユーザー"),
+            avatar: recipient ? recipient.displayAvatarURL({ format: 'png' }) : null,
+            type: c.type,
+            lastMessageId: c.lastMessageId,
+            lastMessageTimestamp: c.lastMessageId ? snowflakeToTimestamp(c.lastMessageId) : 0
+        };
+    }).sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
+};
 
 const getChannelsWithMembers = (guild) => {
     if (!guild) return [];
     const cache = guild.channels.cache;
-    
-    // カテゴリー抽出
-    const allCategories = cache.filter(c => isCategory(c.type))
-        .sort((a,b) => a.rawPosition - b.rawPosition);
-    
-    // スレッド抽出
+    const allCategories = cache.filter(c => c.type === 'GUILD_CATEGORY' || c.type === 4).sort((a,b) => a.rawPosition - b.rawPosition);
     const allThreads = cache.filter(c => c.isThread?.() || [10, 11, 12].includes(c.type));
     
-    // メインチャンネル抽出 (カテゴリー・スレッド以外)
-    const mainChannels = cache.filter(c => 
-        !isCategory(c.type) && 
-        !c.isThread?.() && 
-        c.viewable
-    ).sort((a,b) => {
-        const isVoiceA = (isVoice(a.type) || isStage(a.type));
-        const isVoiceB = (isVoice(b.type) || isStage(b.type));
-        if (isVoiceA !== isVoiceB) return isVoiceA ? 1 : -1;
-        return a.rawPosition - b.rawPosition;
-    });
+    const mainChannels = cache.filter(c => !c.isThread?.() && c.type !== 'GUILD_CATEGORY' && c.type !== 4 && c.viewable)
+        .sort((a,b) => {
+            const isVoiceA = (a.type === 'GUILD_VOICE' || a.type === 'GUILD_STAGE_VOICE' || a.type === 2 || a.type === 13);
+            const isVoiceB = (b.type === 'GUILD_VOICE' || b.type === 'GUILD_STAGE_VOICE' || b.type === 2 || b.type === 13);
+            if (isVoiceA !== isVoiceB) return isVoiceA ? 1 : -1;
+            return a.rawPosition - b.rawPosition;
+        });
 
     const mapChannel = (c) => ({
-        id: c.id, 
-        name: c.name, 
-        type: c.type, // v14なら数値、v13なら文字列
-        members: (isVoice(c.type) || isStage(c.type)) ? c.members.map(m => ({
-            id: m.id, 
-            username: m.displayName, 
-            avatar: m.user.displayAvatarURL({ format: 'png' })
+        id: c.id, name: c.name, type: c.type,
+        members: (c.type === 'GUILD_VOICE' || c.type === 'GUILD_STAGE_VOICE' || c.type === 2 || c.type === 13) ? c.members.map(m => ({
+            id: m.id, username: m.displayName, avatar: m.user.displayAvatarURL({ format: 'png' })
         })) : [],
-        threads: allThreads
-            .filter(t => t.parentId === c.id)
-            .map(t => ({
-                id: t.id, 
-                name: t.name, 
-                type: t.type,
-                lastMessageTimestamp: t.lastMessageId ? (Number(BigInt(t.lastMessageId) >> 22n) + 1420070400000) : t.createdTimestamp,
-                messageCount: t.messageCount || 0
-            }))
-            .sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp)
+        threads: allThreads.filter(t => t.parentId === c.id).map(t => ({
+            id: t.id, name: t.name, type: t.type,
+            lastMessageTimestamp: t.lastMessageId ? snowflakeToTimestamp(t.lastMessageId) : t.createdTimestamp,
+            messageCount: t.messageCount || 0
+        })).sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp)
     });
 
     const result = [];
     const uncategorized = { id: "uncategorized", name: null, channels: mainChannels.filter(c => !c.parentId).map(mapChannel) };
     if (uncategorized.channels.length > 0) result.push(uncategorized);
-    
     allCategories.forEach(cat => {
         const catChannels = mainChannels.filter(c => c.parentId === cat.id).map(mapChannel);
         result.push({ id: cat.id, name: cat.name, channels: catChannels });
@@ -126,43 +106,47 @@ const formatMessage = (m) => {
     };
 };
 
-io.on('connection', (socket) => {
-    socket.on('login', async ({ token, isBot }) => {
-        let client;
+const destroySession = (id) => {
+    const client = sessions.get(id);
+    if (client) {
+        console.log(`[System] Clearing session: ${id}`);
+        try { client.destroy(); } catch (e) {}
+        sessions.delete(id);
+    }
+    loginQueue.delete(id);
+};
 
-        // Botとユーザー分岐
+io.on('connection', (socket) => {
+    console.log(`[Socket] Connected: ${socket.id}`);
+
+    socket.on('login', async ({ token, isBot }) => {
+        if (sessions.has(socket.id) || loginQueue.has(socket.id)) return;
+        
+        loginQueue.add(socket.id);
+        console.log(`[Auth] Login attempt: ${isBot ? 'Bot' : 'User'}`);
+
+        let client;
         if (isBot && BotClient) {
-            console.log("Initializing Bot Client...");
             client = new BotClient({
-                intents: [
-                    GatewayIntentBits.Guilds,
-                    GatewayIntentBits.GuildMessages,
-                    GatewayIntentBits.MessageContent,
-                    GatewayIntentBits.GuildMembers,
-                    GatewayIntentBits.GuildVoiceStates,
-                    GatewayIntentBits.GuildMessageReactions
-                ],
+                intents: [1, 2, 8, 512, 32768, 16384],
                 partials: [Partials.Message, Partials.Channel, Partials.Reaction]
             });
         } else {
-            console.log("Initializing Selfbot Client...");
             client = new SelfClient({ checkUpdate: false });
         }
 
-        client.on('ready', () => {
-            console.log(`Logged in as ${client.user.tag} (${isBot ? 'Bot' : 'User'})`);
+        const handleReady = () => {
+            loginQueue.delete(socket.id);
+            if (sessions.has(socket.id)) return;
+            
+            console.log(`[Auth] Ready: ${client.user.tag}`);
             sessions.set(socket.id, client);
             socket.emit('login-success', { user: { id: client.user.id, username: client.user.username, avatar: client.user.displayAvatarURL({ format: 'png' }) } });
             
-            // イベリス
-            const onMessageCreate = (m) => { if(m.channelId === socket.currentChannelId) socket.emit('newMessage', formatMessage(m)); };
-            const onMessageUpdate = (old, m) => { if(m.channelId === socket.currentChannelId) socket.emit('messageUpdate', formatMessage(m)); };
-            const onMessageDelete = (m) => { if(m.channelId === socket.currentChannelId) socket.emit('messageDelete', { id: m.id }); };
+            client.on('messageCreate', (m) => { if(m.channelId === socket.currentChannelId) socket.emit('newMessage', formatMessage(m)); });
+            client.on('messageUpdate', (old, m) => { if(m.channelId === socket.currentChannelId) socket.emit('messageUpdate', formatMessage(m)); });
+            client.on('messageDelete', (m) => { if(m.channelId === socket.currentChannelId) socket.emit('messageDelete', { id: m.id }); });
             
-            client.on('messageCreate', onMessageCreate);
-            client.on('messageUpdate', onMessageUpdate);
-            client.on('messageDelete', onMessageDelete);
-
             const handleReactionChange = async (reaction) => {
                 if (reaction.message.channelId === socket.currentChannelId) {
                     try { const updatedMsg = await reaction.message.fetch(true); socket.emit('messageUpdate', formatMessage(updatedMsg)); } catch (e) {}
@@ -170,19 +154,15 @@ io.on('connection', (socket) => {
             };
             client.on('messageReactionAdd', handleReactionChange);
             client.on('messageReactionRemove', handleReactionChange);
-            
-            client.on('voiceStateUpdate', () => {
-                if (socket.currentGuildId) {
-                    const g = client.guilds.cache.get(socket.currentGuildId);
-                    if(g) socket.emit('channelsUpdate', getChannelsWithMembers(g));
-                }
-            });
-        });
+        };
 
+        client.on('ready', handleReady);
+        client.on('clientReady', handleReady);
+        
         try { 
             await client.login(token); 
         } catch (e) { 
-            console.error("Login Failed:", e.message);
+            loginQueue.delete(socket.id);
             socket.emit('login-error', e.message); 
         }
     });
@@ -193,16 +173,22 @@ io.on('connection', (socket) => {
         cb(client.guilds.cache.map(g => ({ id: g.id, name: g.name, icon: g.iconURL({ format: 'png' }), acronym: g.name.replace(/\w+/g, n=>n[0]).slice(0,3).toUpperCase() })));
     });
 
-    socket.on('getChannels', (guildId, cb) => {
+    socket.on('getChannels', async (guildId, cb) => {
         const client = sessions.get(socket.id);
-        const guild = client?.guilds.cache.get(guildId);
-        if(!guild) return cb([]);
+        if(!client) return cb([]);
         socket.currentGuildId = guildId;
+        if (guildId === '@me') {
+            const dms = await getDMChannels(client);
+            return cb([{ id: "dms", name: "ダイレクトメッセージ", channels: dms }]);
+        }
+        const guild = client.guilds.cache.get(guildId);
+        if(!guild) return cb([]);
         cb(getChannelsWithMembers(guild));
     });
 
     socket.on('getMessages', async (data, cb) => {
         const client = sessions.get(socket.id);
+        if(!client) return cb([]);
         const channelId = typeof data === 'string' ? data : data.channelId;
         const before = typeof data === 'object' ? data.before : null;
         socket.currentChannelId = channelId;
@@ -213,33 +199,6 @@ io.on('connection', (socket) => {
             const msgs = await ch.messages.fetch(fetchOptions);
             cb(Array.from(msgs.values()).reverse().map(formatMessage).filter(m => m));
         } catch(e) { cb([]); }
-    });
-
-    socket.on('getUserProfile', async ({ userId, guildId }, cb) => {
-        const client = sessions.get(socket.id);
-        if (!client) return cb(null);
-        try {
-            // Botでは force: true が使える場合が多いが、安全のためキャッシュ優先
-            let user = client.users.cache.get(userId);
-            if (!user) user = await client.users.fetch(userId);
-            
-            const guild = guildId ? client.guilds.cache.get(guildId) : null;
-            const member = guild ? await guild.members.fetch(userId).catch(() => null) : null;
-            cb({
-                id: user.id, username: user.tag, displayName: member?.displayName || user.username,
-                avatar: user.displayAvatarURL({ format: 'png', size: 256 }),
-                banner: (typeof user.bannerURL === 'function') ? user.bannerURL({ format: 'png', size: 600 }) : null,
-                accentColor: user.hexAccentColor || '#5865F2',
-                createdAt: user.createdTimestamp,
-                status: member?.presence?.status || 'offline',
-                roles: member ? member.roles.cache.filter(r => r.name !== '@everyone').sort((a,b) => b.position - a.position).map(r => ({ name: r.name, color: r.hexColor })) : []
-            });
-        } catch (e) { cb(null); }
-    });
-
-    socket.on('getGuildEmojis', (guildId, cb) => {
-        const guild = sessions.get(socket.id)?.guilds.cache.get(guildId);
-        cb(guild ? guild.emojis.cache.map(e => ({ id: e.id, name: e.name, url: e.url })) : []);
     });
 
     socket.on('sendMessage', async (d) => {
@@ -255,95 +214,8 @@ io.on('connection', (socket) => {
         } catch (e) { console.error('SendMessage Error:', e.message); }
     });
 
-    socket.on('addReaction', async (d) => {
-        try {
-            const client = sessions.get(socket.id);
-            const ch = await client?.channels.fetch(d.channelId);
-            const msg = await ch?.messages.fetch(d.messageId);
-            if (msg) {
-                const emoji = d.emoji.includes(':') ? d.emoji.split(':').pop() : d.emoji;
-                await msg.react(emoji);
-            }
-        } catch (e) { console.error('AddReaction Error:', e.message); }
-    });
-
-    socket.on('removeReaction', async (d) => {
-        try {
-            const client = sessions.get(socket.id);
-            const ch = await client?.channels.fetch(d.channelId);
-            const msg = await ch?.messages.fetch(d.messageId);
-            if (msg) {
-                const reaction = msg.reactions.cache.find(r => 
-                    r.emoji.id === d.emoji || r.emoji.name === d.emoji || (r.emoji.id && d.emoji.includes(r.emoji.id))
-                );
-                // Botの場合は自分(client.user)のリアクションのみ消すのが基本だが、
-                // 自己削除なら remove() でいける
-                if (reaction) await reaction.users.remove(client.user.id);
-            }
-        } catch (e) { console.error('RemoveReaction Error:', e.message); }
-    });
-
-    socket.on('editMessage', async (d) => {
-        try {
-            const ch = await sessions.get(socket.id)?.channels.fetch(d.channelId);
-            const msg = await ch?.messages.fetch(d.messageId);
-            if (msg) await msg.edit(d.content);
-        } catch (e) { console.error(e.message); }
-    });
-
-    socket.on('deleteMessage', async (d) => {
-        try {
-            const ch = await sessions.get(socket.id)?.channels.fetch(d.channelId);
-            const msg = await ch?.messages.fetch(d.messageId);
-            if (msg) await msg.delete();
-        } catch (e) { console.error(e.message); }
-    });
-
-    // --- VC関連 (Botでも一応動作するが、Selfbot用アダプタを使っているため注意) ---
-    socket.on('join-voice', async ({ channelId }) => {
-        const client = sessions.get(socket.id);
-        if (!client) return;
-        try {
-            const channel = await client.channels.fetch(channelId);
-            const connection = joinVoiceChannel({ 
-                channelId: channel.id, 
-                guildId: channel.guild.id, 
-                adapterCreator: channel.guild.voiceAdapterCreator, 
-                selfMute: false, 
-                selfDeaf: false 
-            });
-            await entersState(connection, VoiceConnectionStatus.Ready, 5000);
-            
-            const player = createAudioPlayer();
-            const voiceStream = new PassThrough();
-            player.play(createAudioResource(voiceStream, { inputType: StreamType.Arbitrary }));
-            connection.subscribe(player);
-
-            // Botで音声受信するには受信権限が必要な場合があるが、とりあえず実装
-            connection.receiver.speaking.on('start', (userId) => {
-                const audio = connection.receiver.subscribe(userId, { end: { behavior: EndBehaviorType.AfterSilence, duration: 100 } });
-                audio.on('data', (chunk) => { socket.emit('voice-audio', chunk); });
-            });
-
-            voiceConnections.set(socket.id, { connection, player, voiceStream });
-            socket.emit('voice-joined-success', { channelId });
-        } catch (e) { socket.emit('voice-error', e.message); }
-    });
-
-    socket.on('audio-data', (data) => {
-        const vc = voiceConnections.get(socket.id);
-        if (vc?.voiceStream) vc.voiceStream.write(Buffer.from(data));
-    });
-
-    socket.on('leave-voice', () => {
-        const vc = voiceConnections.get(socket.id);
-        if (vc) { vc.connection.destroy(); voiceConnections.delete(socket.id); }
-    });
-
     socket.on('disconnect', () => {
-        const vc = voiceConnections.get(socket.id);
-        if (vc) vc.connection.destroy();
-        sessions.delete(socket.id);
+        destroySession(socket.id);
     });
 });
 
