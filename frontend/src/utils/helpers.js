@@ -1,4 +1,4 @@
-export const API_URL = "https://d_api.yexe.xyz/";
+export const API_URL = "https://dapi.yexe.xyz/";
 
 export const getProxyUrl = (url) => {
   return url;
