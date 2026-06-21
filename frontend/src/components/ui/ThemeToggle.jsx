@@ -4,7 +4,7 @@ import React from 'react';
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTheme } from 'next-themes';
-import { cn } from '../../lib/utils'; // ★ここを修正しました
+import { cn } from '../../lib/utils';
 
 const THEME_OPTIONS = [
 	{

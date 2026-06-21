@@ -1,47 +1,204 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { FaHashtag, FaMicrophone, FaHeadphones, FaGear, FaChevronLeft } from 'react-icons/fa6';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { FaBell, FaChevronLeft, FaHashtag, FaInbox, FaMagnifyingGlass } from 'react-icons/fa6';
 
 import ServerList from './server/ServerList';
 import ChannelSidebar from './channel/ChannelSidebar';
 import MessageContent from './chat/MessageContent';
+import MessageComponents from './chat/MessageComponents';
 import ReactionList from './chat/ReactionList';
 import ChatInput from './chat/ChatInput';
 import WindowHeader from './window/WindowHeader';
 import MessageEmbed from './chat/MessageEmbed';
-import ForumView from './chat/ForumView'; 
+import ForumView from './chat/ForumView';
+import FriendsView from './home/FriendsView';
 import ImageViewer from './chat/ImageViewer';
 import UserPopout from './overlay/UserPopout';
 import MessageContextMenu from './overlay/MessageContextMenu';
 import MessageToolbar from './chat/MessageToolbar';
-import { getProxyUrl, formatTimestamp } from '../utils/helpers';
+import MessageReply from './chat/MessageReply';
+import MediaPicker from './chat/MediaPicker';
+import ModalDialog from './chat/ModalDialog';
+import AppSettings from './settings/AppSettings';
+import { formatTimestamp, getProxyUrl } from '../utils/helpers';
+import { getStickerUrl, isLottieSticker } from '../utils/stickers';
+import { useTwemoji } from '../hooks/useTwemoji';
+
+const ChannelHeaderName = ({ name }) => {
+    const { ref } = useTwemoji();
+    return <h3 ref={ref} className="m-0 min-w-0 flex-1 truncate text-base font-semibold">{name}</h3>;
+};
+
+const MessageAuthorName = ({ name, color, onClick }) => {
+    const { ref } = useTwemoji();
+    return (
+        <span ref={ref} className="font-semibold leading-6 cursor-pointer hover:underline" style={{ color }} onClick={onClick}>
+            {name}
+        </span>
+    );
+};
+
+const DraftUploadMessage = ({ draft, user }) => {
+    if (!draft) return null;
+    const statusText = draft.status === 'failed' ? '送信に失敗しました' : '送信中...';
+
+    return (
+        <article className="app-message app-draft-message" data-status={draft.status}>
+            <div className="app-message-row">
+                <img src={getProxyUrl(user?.avatar)} className="app-message-avatar" alt="" />
+                <div className="app-message-body">
+                    <div className="app-message-meta">
+                        <span className="app-message-author">{user?.displayName || user?.globalName || user?.username || '自分'}</span>
+                        <span className="app-message-time">{statusText}</span>
+                    </div>
+                    <div className="app-message-content">
+                        {draft.content && <MessageContent content={draft.content} />}
+                        {draft.files?.map((file) => (
+                            <div key={file.id} className="app-draft-file">
+                                <div className="app-draft-upload-line">
+                                    {draft.status === 'failed'
+                                        ? `\`${file.name}\` のアップロードに失敗しました`
+                                        : `\`${file.name}\` をアップロード中... ${file.progress || 0}%`}
+                                </div>
+                                {file.previewUrl && (
+                                    <div className="app-draft-image-frame" style={{ '--upload-progress': `${file.progress || 0}%` }}>
+                                        <img src={file.previewUrl} alt={file.name} />
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                        {draft.error && <div className="app-draft-error">{draft.error}</div>}
+                    </div>
+                </div>
+            </div>
+        </article>
+    );
+};
+
+const StickerPreviewMenu = ({ preview, guild, onClose }) => {
+    const menuRef = useRef(null);
+    const sticker = preview?.sticker;
+    const anchor = preview?.anchor;
+
+    useEffect(() => {
+        if (!menuRef.current || !anchor) return;
+        const menu = menuRef.current;
+        const frame = requestAnimationFrame(() => {
+            menu.anchorElement = anchor;
+            if (typeof menu.show === 'function') {
+                menu.show();
+            } else {
+                menu.open = true;
+            }
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [anchor, preview?.key]);
+
+    useEffect(() => {
+        const menu = menuRef.current;
+        if (!menu) return undefined;
+        const handleClosed = () => onClose(preview?.key);
+        menu.addEventListener('closed', handleClosed);
+        return () => menu.removeEventListener('closed', handleClosed);
+    }, [onClose, preview?.key]);
+
+    if (!sticker) return null;
+    const stickerUrl = getStickerUrl(sticker);
+    const serverName = guild?.id !== '@me' ? guild?.name : null;
+
+    return (
+        <md-menu
+            ref={menuRef}
+            class="app-sticker-menu"
+            positioning="fixed"
+            anchor-corner="start-end"
+            menu-corner="start-start"
+            x-offset="8"
+            skip-restore-focus
+        >
+            <div className="app-sticker-menu-content" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                <div className="app-sticker-menu-main">
+                    <div className="app-sticker-menu-preview">
+                        {isLottieSticker(sticker) ? (
+                            <span className="app-sticker-lottie">{sticker.name}</span>
+                        ) : (
+                            <img src={getProxyUrl(stickerUrl)} alt={sticker.name} />
+                        )}
+                    </div>
+                    <div className="app-sticker-menu-copy">
+                        <h3>{sticker.name}</h3>
+                        <p>{sticker.description || 'このサーバーで作られたスタンプです。'}</p>
+                    </div>
+                </div>
+                {serverName && (
+                    <>
+                        <md-divider />
+                        <div className="app-sticker-menu-server">
+                            {guild?.icon ? <img src={getProxyUrl(guild.icon)} alt="" /> : <span>{guild?.acronym || guild?.name?.slice(0, 2)}</span>}
+                            <div>
+                                <p>このスタンプが作られたサーバー</p>
+                                <strong>{serverName}</strong>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+        </md-menu>
+    );
+};
 
 export default function DiscordClient({ socket, user }) {
     const { guildId: paramGuildId = '@me', channelId: paramChannelId } = useParams();
     const navigate = useNavigate();
-    
+
     const [guilds, setGuilds] = useState([]);
     const [channels, setChannels] = useState([]);
     const [messages, setMessages] = useState([]);
     const [guildEmojis, setGuildEmojis] = useState([]);
+    const [guildStickers, setGuildStickers] = useState([]);
     const [showMobileChat, setShowMobileChat] = useState(!!paramChannelId);
-    
+
     const [replyingTo, setReplyingTo] = useState(null);
     const [contextMenu, setContextMenu] = useState(null);
     const [userPopout, setUserPopout] = useState(null);
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [mediaPicker, setMediaPicker] = useState(null);
     const [editingMessageId, setEditingMessageId] = useState(null);
     const [editInput, setEditInput] = useState("");
     const [previewData, setPreviewData] = useState({ isOpen: false, images: [], index: 0 });
     const [hoveredMessageId, setHoveredMessageId] = useState(null);
     const [joinedVoiceChannelId, setJoinedVoiceChannelId] = useState(null);
     const [loadingOlder, setLoadingOlder] = useState(false);
+    const [loadingChannelId, setLoadingChannelId] = useState(null);
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [uploadDraft, setUploadDraft] = useState(null);
+    const [friends, setFriends] = useState([]);
+    const [friendsLoading, setFriendsLoading] = useState(false);
+    const [stickerPreview, setStickerPreview] = useState(null);
+    const [slashCommands, setSlashCommands] = useState([]);
+    const [activeModal, setActiveModal] = useState(null);
 
     const scrollRef = useRef(null);
     const messagesEndRef = useRef(null);
+    const isFriendsRoute = paramGuildId === '@me' && paramChannelId === 'friends';
 
     const scrollToBottom = useCallback((smooth = false) => {
         if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "end" });
+    }, []);
+
+    const startReply = useCallback((msg) => {
+        setReplyingTo({
+            id: msg.id,
+            mention: msg.author.id !== user?.id,
+            message: msg
+        });
+    }, [user?.id]);
+
+    const jumpToMessage = useCallback((messageId) => {
+        const el = document.getElementById(`message-${messageId}`);
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('app-message-jump');
+        window.setTimeout(() => el.classList.remove('app-message-jump'), 1200);
     }, []);
 
     useEffect(() => {
@@ -51,58 +208,101 @@ export default function DiscordClient({ socket, user }) {
 
     useEffect(() => {
         if (!socket || !paramGuildId) return;
-        
+
         setChannels([]);
-        
+
         socket.emit('getChannels', paramGuildId, (data) => {
             setChannels(data);
         });
 
         if (paramGuildId !== '@me') {
             socket.emit('getGuildEmojis', paramGuildId, setGuildEmojis);
+            socket.emit('getGuildStickers', paramGuildId, setGuildStickers);
         } else {
             setGuildEmojis([]);
+            setGuildStickers([]);
         }
 
-        if (!paramChannelId) setShowMobileChat(false);
     }, [socket, paramGuildId]);
 
     useEffect(() => {
+        if (!socket || !paramGuildId || paramGuildId === '@me') {
+            setSlashCommands([]);
+            return;
+        }
+        socket.emit('getSlashCommands', paramGuildId, setSlashCommands);
+    }, [socket, paramGuildId]);
+
+    useEffect(() => {
+        if (!paramChannelId) setShowMobileChat(false);
+    }, [paramChannelId]);
+
+    useEffect(() => {
+        if (uploadDraft) setTimeout(() => scrollToBottom(true), 50);
+    }, [uploadDraft, scrollToBottom]);
+
+    useEffect(() => {
+        if (isFriendsRoute) {
+            setMessages([]);
+            setLoadingChannelId(null);
+            setShowMobileChat(true);
+            return;
+        }
         if (!socket || !paramChannelId) {
             setMessages([]);
+            setLoadingChannelId(null);
             return;
         }
         setShowMobileChat(true);
-        setMessages([]);
+        setLoadingChannelId(paramChannelId);
+        setHoveredMessageId(null);
+        setContextMenu(null);
+        let cancelled = false;
         socket.emit('getMessages', paramChannelId, (msgs) => {
+            if (cancelled) return;
             setMessages(msgs);
+            setLoadingChannelId((id) => (id === paramChannelId ? null : id));
             setTimeout(() => scrollToBottom(false), 50);
         });
-    }, [socket, paramChannelId, scrollToBottom]);
+        return () => {
+            cancelled = true;
+        };
+    }, [socket, paramChannelId, isFriendsRoute, scrollToBottom]);
+
+    useEffect(() => {
+        if (!socket || !isFriendsRoute) return;
+        setFriendsLoading(true);
+        socket.emit('getFriends', (data) => {
+            setFriends(Array.isArray(data) ? data : []);
+            setFriendsLoading(false);
+        });
+    }, [socket, isFriendsRoute]);
 
     useEffect(() => {
         if (!socket) return;
 
-        const onNewMsg = (msg) => { 
-            if (msg.channelId === paramChannelId) { 
-                setMessages(p => (p.some(m => m.id === msg.id) ? p : [...p, msg])); 
-                setTimeout(() => scrollToBottom(true), 100); 
+        const onNewMsg = (msg) => {
+            if (msg.channelId === paramChannelId) {
+                setMessages((p) => (p.some((m) => m.id === msg.id) ? p : [...p, msg]));
+                setTimeout(() => scrollToBottom(true), 100);
             }
         };
-        const onUpdMsg = (msg) => { if (msg.channelId === paramChannelId) setMessages(p => p.map(m => m.id === msg.id ? msg : m)); };
-        const onDelMsg = ({ id }) => setMessages(p => p.filter(m => m.id !== id));
+        const onUpdMsg = (msg) => { if (msg.channelId === paramChannelId) setMessages((p) => p.map((m) => m.id === msg.id ? msg : m)); };
+        const onDelMsg = ({ id }) => setMessages((p) => p.filter((m) => m.id !== id));
         const onChannelsUpd = (data) => setChannels(data);
 
         socket.on('newMessage', onNewMsg);
         socket.on('messageUpdate', onUpdMsg);
         socket.on('messageDelete', onDelMsg);
         socket.on('channelsUpdate', onChannelsUpd);
+        socket.on('modalResponse', (modal) => setActiveModal(modal));
 
         return () => {
             socket.off('newMessage', onNewMsg);
             socket.off('messageUpdate', onUpdMsg);
             socket.off('messageDelete', onDelMsg);
             socket.off('channelsUpdate', onChannelsUpd);
+            socket.off('modalResponse', (modal) => setActiveModal(modal));
         };
     }, [socket, paramChannelId, scrollToBottom]);
 
@@ -114,7 +314,7 @@ export default function DiscordClient({ socket, user }) {
             const oldScrollHeight = scrollRef.current.scrollHeight;
             socket.emit('getMessages', { channelId: paramChannelId, before: oldestId }, (newMsgs) => {
                 if (newMsgs && newMsgs.length > 0) {
-                    setMessages(prev => [...newMsgs, ...prev]);
+                    setMessages((prev) => [...newMsgs, ...prev]);
                     requestAnimationFrame(() => {
                         if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight - oldScrollHeight;
                     });
@@ -124,93 +324,352 @@ export default function DiscordClient({ socket, user }) {
         }
     };
 
-    const allFlattenedChannels = channels.flatMap(c => [...(c.channels || []), ...(c.channels?.flatMap(mc => mc.threads || []) || [])]);
-    const currentChannel = allFlattenedChannels.find(c => c.id === paramChannelId);
+    const allFlattenedChannels = channels.flatMap((c) => [...(c.channels || []), ...(c.channels?.flatMap((mc) => mc.threads || []) || [])]);
+    const currentChannel = allFlattenedChannels.find((c) => c.id === paramChannelId);
     const isForum = currentChannel?.type === 'GUILD_FORUM' || currentChannel?.type === 15;
-    const currentGuildData = paramGuildId === '@me' ? { id: '@me', name: "ダイレクトメッセージ" } : guilds.find(g => g.id === paramGuildId);
+    const currentGuildData = paramGuildId === '@me' ? { id: '@me', name: "ダイレクトメッセージ", acronym: "DM" } : guilds.find((g) => g.id === paramGuildId);
+    const stickerPreviewGuild = stickerPreview?.sticker?.guildId ? guilds.find((g) => g.id === stickerPreview.sticker.guildId) || currentGuildData : currentGuildData;
+    const isChannelLoading = loadingChannelId === paramChannelId;
+    const resolveReplyMessage = (msg) => msg.replyTo?.message || messages.find((candidate) => candidate.id === msg.replyTo?.id);
+    const getPickerAnchor = (event) => {
+        const rect = event?.currentTarget?.getBoundingClientRect?.();
+        if (!rect) return null;
+        return { right: rect.right, top: rect.top };
+    };
+    const pickerStyle = mediaPicker?.anchor ? {
+        left: `max(8px, min(${mediaPicker.anchor.right - 400}px, calc(100vw - 408px)))`,
+        top: `max(8px, ${mediaPicker.anchor.top - 405}px)`
+    } : undefined;
 
     return (
-        <div className="flex flex-col h-screen w-screen overflow-hidden text-discord-text font-ggsans bg-discord-bg dark-scrollbar" onClick={() => { setContextMenu(null); setUserPopout(null); setShowEmojiPicker(false); }}>
+        <div className="app-app" onClick={() => { setContextMenu(null); setUserPopout(null); setMediaPicker(null); }}>
             <WindowHeader guild={currentGuildData} />
-            <div className="flex flex-1 min-h-0 relative">
-                <div className={`flex flex-col shrink-0 bg-[#050505] border-r border-discord-border h-full w-full md:w-[400px] ${showMobileChat ? 'hidden md:flex' : 'flex'}`}>
-                    <div className="flex flex-1 min-h-0">
-                        <ServerList guilds={guilds} currentGuildId={paramGuildId} onSelect={(gid) => navigate(`/${gid}`)} />
-                        <div className="flex-1 min-w-0">
-                            <ChannelSidebar currentGuild={currentGuildData} channels={channels} currentChannelId={paramChannelId} onSelectChannel={(ch) => navigate(`/${paramGuildId}/${ch.id}`)} joinedVoiceChannelId={joinedVoiceChannelId} onLeaveVoice={() => socket.emit('leave-voice')} />
-                        </div>
-                    </div>
-                    <div className="bg-[#050505] h-[52px] px-2 flex items-center shrink-0 border-t border-discord-border select-none">
-                        <div className="flex items-center p-1 rounded hover:bg-[#1c1d1f] cursor-pointer mr-auto min-w-0 group transition-all" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setUserPopout({ x: e.pageX, y: e.pageY - 200, userId: user.id }); }}>
-                            <div className="relative w-8 h-8 rounded-full overflow-hidden mr-2 bg-gray-800 shrink-0">
-                                <img src={getProxyUrl(user?.avatar)} className="w-full h-full object-cover" alt="" />
-                                <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 bg-discord-green rounded-full border-[2px] border-[#050505]`}></div>
-                            </div>
-                            <div className="min-w-0"><div className="font-bold text-white text-[13px] truncate group-hover:underline leading-tight">{user?.username}</div><div className="text-[11px] text-discord-muted truncate leading-tight">オンライン</div></div>
-                        </div>
-                        <div className="flex text-[#b5bac1]"><button className="w-8 h-8 flex items-center justify-center hover:bg-[#1c1d1f] rounded transition-colors"><FaMicrophone size={14}/></button><button className="w-8 h-8 flex items-center justify-center hover:bg-[#1c1d1f] rounded transition-colors"><FaHeadphones size={16}/></button><button className="w-8 h-8 flex items-center justify-center hover:bg-[#1c1d1f] rounded transition-colors"><FaGear size={14}/></button></div>
-                    </div>
+            <div className="app-layout">
+                <div className={`flex shrink-0 ${showMobileChat ? 'hidden md:flex' : 'flex'}`}>
+                    <ServerList
+                        guilds={guilds}
+                        currentGuildId={paramGuildId}
+                        user={user}
+                        onSettings={() => setSettingsOpen(true)}
+                        onUserClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setUserPopout({ x: e.pageX + 12, y: e.pageY, userId: user.id });
+                        }}
+                        onSelect={(gid) => navigate(`/${gid}`)}
+                    />
+                    <ChannelSidebar
+                        currentGuild={currentGuildData}
+                        channels={channels}
+                        currentChannelId={paramChannelId}
+                        onSelectChannel={(ch) => navigate(`/${paramGuildId}/${ch.id}`)}
+                        onSelectHome={() => navigate('/@me')}
+                        onSelectFriends={() => navigate('/@me/friends')}
+                        joinedVoiceChannelId={joinedVoiceChannelId}
+                        onLeaveVoice={() => socket.emit('leave-voice')}
+                        onServerSettings={() => setSettingsOpen(true)}
+                    />
                 </div>
-                <div className={`flex-1 flex flex-col min-w-0 bg-discord-bg h-full ${showMobileChat ? 'flex' : 'hidden md:flex'}`}>
-                    {isForum ? (
+
+                <div className={`app-content-shell ${showMobileChat ? 'flex' : 'hidden md:flex'}`}>
+                    {isFriendsRoute ? (
+                        <FriendsView friends={friends} loading={friendsLoading} />
+                    ) : isForum ? (
                         <ForumView threads={currentChannel.threads || []} channelName={currentChannel.name} onSelectThread={(ch) => navigate(`/${paramGuildId}/${ch.id}`)} onBack={() => navigate(`/${paramGuildId}`)} />
                     ) : (
-                        <div className="flex-1 flex flex-col min-w-0 relative h-full">
-                            <header className="h-12 px-4 flex items-center border-b border-discord-border shrink-0 shadow-sm gap-2">
-                                <button onClick={() => navigate(`/${paramGuildId}`)} className="md:hidden text-discord-muted hover:text-white p-2"><FaChevronLeft size={20} /></button>
-                                <FaHashtag className="text-discord-muted text-xl" />
-                                <h3 className="font-bold text-white truncate">{currentChannel?.name || (paramGuildId === '@me' ? "DM" : "チャンネル")}</h3>
+                        <main className="app-chat">
+                            <header className="app-chat-header">
+                                <md-icon-button onClick={() => navigate(`/${paramGuildId}`)} class="m3-icon-button md:hidden" title="戻る">
+                                    <FaChevronLeft size={18} />
+                                </md-icon-button>
+                                <FaHashtag className="shrink-0" size={18} />
+                                <ChannelHeaderName name={currentChannel?.name || (paramGuildId === '@me' ? "DM" : "チャンネルを選択")} />
+                                <div className="hidden items-center gap-1 sm:flex">
+                                    <md-icon-button class="m3-icon-button" title="通知"><FaBell size={16} /></md-icon-button>
+                                    <md-icon-button class="m3-icon-button" title="受信トレイ"><FaInbox size={17} /></md-icon-button>
+                                    <div className="flex h-9 w-44 items-center gap-2 rounded-full bg-[var(--app-surface-container-high)] px-3 text-sm text-[var(--app-outline)] xl:w-56">
+                                        <FaMagnifyingGlass size={12} />
+                                        <span className="truncate">検索</span>
+                                    </div>
+                                </div>
                             </header>
-                            <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto custom-scrollbar flex flex-col px-4 pt-4 select-text">
-                               {loadingOlder && <div className="text-center py-4 text-xs text-discord-muted animate-pulse">過去のログを読み込み中...</div>}
-                               {messages.map((m) => {
-                                 const isMe = m.author.id === user?.id;
-                                 const nameColor = (m.author.color && m.author.color !== '#000000') ? m.author.color : '#ffffff';
-                                 return (
-                                   <div key={m.id} className="group relative -mx-4 px-4 py-1 hover:bg-discord-hover transition-colors" onContextMenu={(e)=>{e.preventDefault(); e.stopPropagation(); setContextMenu({x: e.pageX, y: e.pageY, message: m})}} onMouseEnter={()=>setHoveredMessageId(m.id)} onMouseLeave={()=>setHoveredMessageId(null)}>
-                                      {hoveredMessageId === m.id && <MessageToolbar message={m} isMe={isMe} onReaction={(id, emo, add) => {
-                                          const identifier = emo.id ? `${emo.name}:${emo.id}` : (emo.name || emo);
-                                          socket.emit(add ? 'addReaction' : 'removeReaction', { channelId: paramChannelId, messageId: id, emoji: identifier });
-                                      }} onReply={(msg) => setReplyingTo({id: msg.id, username: msg.author.username})} onEdit={(msg) => {setEditingMessageId(msg.id); setEditInput(msg.content);}} onOpenMenu={(e)=>setContextMenu({x: e.pageX, y: e.pageY, message: m})} onReactionOpen={() => setShowEmojiPicker(true)} />}
-                                      <div className="flex gap-4">
-                                         <img src={getProxyUrl(m.author.avatar)} className="w-10 h-10 rounded-full shrink-0 cursor-pointer" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setUserPopout({ x: e.pageX, y: e.pageY, userId: m.author.id }); }} />
-                                         <div className="flex-1 min-w-0 text-left">
-                                            <div className="flex items-center gap-2">
-                                               <span className="font-bold hover:underline cursor-pointer" style={{color: nameColor}} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setUserPopout({ x: e.pageX, y: e.pageY, userId: m.author.id }); }}>{m.author.displayName}</span>
-                                               <span className="text-xs text-discord-muted font-medium">{formatTimestamp(m.timestamp)}</span>
-                                            </div>
-                                            {editingMessageId === m.id ? (
-                                               <div className="bg-discord-element p-2 rounded mt-1 border border-discord-border">
-                                                 <textarea className="bg-transparent w-full text-discord-text outline-none p-1 resize-none font-ggsans" rows={editInput.split('\n').length || 1} value={editInput} onChange={e=>setEditInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault(); socket.emit('editMessage', { channelId: paramChannelId, messageId: m.id, content: editInput }); setEditingMessageId(null);}}} autoFocus />
-                                               </div>
-                                            ) : ( <MessageContent content={m.content} /> )}
-                                            {m.attachments?.length > 0 && <div className="flex flex-wrap gap-2 mt-1">{m.attachments.map((att, idx) => <img key={idx} src={getProxyUrl(att.url)} className="rounded max-w-[400px] max-h-[300px] cursor-pointer" onClick={() => setPreviewData({ isOpen: true, images: m.attachments.map(a=>a.url), index: idx })} />)}</div>}
-                                            {m.embeds?.map((e, idx) => <MessageEmbed key={idx} embed={e} />)}
-                                            <ReactionList reactions={m.reactions} onReactionClick={(emoji, add) => {
-                                                const identifier = emoji.id ? `${emoji.name}:${emoji.id}` : (emoji.name || emoji);
-                                                socket.emit(add ? 'addReaction' : 'removeReaction', { channelId: paramChannelId, messageId: m.id, emoji: identifier });
-                                            }} />
-                                         </div>
-                                      </div>
-                                   </div>
-                                 );
-                               })}
-                               <div ref={messagesEndRef} className="h-6 shrink-0" />
-                            </div>
-                            <ChatInput channelName={currentChannel?.name} disabled={!paramChannelId} replyingTo={replyingTo} onSend={(t) => {
-                                socket.emit('sendMessage', { channelId: paramChannelId, content: t.trim(), reply: replyingTo ? { messageId: replyingTo.id } : null });
-                                setReplyingTo(null);
-                            }} onCancelReply={() => setReplyingTo(null)} onEmojiClick={()=>setShowEmojiPicker(true)} />
-                        </div>
+
+                            {paramChannelId ? (
+                                <>
+                                    <div ref={scrollRef} onScroll={handleScroll} className="app-messages no-scrollbar" data-loading={isChannelLoading ? 'true' : 'false'} aria-busy={isChannelLoading}>
+                                        <div className="app-channel-loading" data-visible={isChannelLoading ? 'true' : 'false'} role="status" aria-live="polite" aria-hidden={!isChannelLoading}>
+                                            <span className="app-loading-spinner" aria-hidden="true" />
+                                            <span>チャンネルを読み込み中</span>
+                                        </div>
+                                        <div className="flex select-none flex-col mx-4 mt-[18px] mb-2.5 text-[var(--app-on-surface)]">
+                                            <h1 className="m-0 text-[32px] leading-[1.15] font-[650]">{currentChannel?.name || '会話'}</h1>
+                                            <p className="mt-1.5 mb-0 text-[var(--app-on-surface-variant)] text-base font-medium">これはチャンネル「{currentChannel?.name || '会話'}」の始まりです。</p>
+                                        </div>
+                                        {loadingOlder && <div className="py-4 text-center text-xs text-[var(--app-outline)]">過去のメッセージを読み込み中...</div>}
+                                        {messages.map((m) => {
+                                            const isMe = m.author.id === user?.id;
+                                            const nameColor = (m.author.color && m.author.color !== '#000000') ? m.author.color : undefined;
+                                            return (
+                                                <article
+                                                    id={`message-${m.id}`}
+                                                    key={m.id}
+                                                    className="app-message"
+                                                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.pageX, y: e.pageY, message: m }); }}
+                                                    onMouseEnter={() => setHoveredMessageId(m.id)}
+                                                    onMouseLeave={() => setHoveredMessageId(null)}
+                                                >
+                                                    {hoveredMessageId === m.id && (
+                                                        <MessageToolbar
+                                                            message={m}
+                                                            isMe={isMe}
+                                                            onReply={startReply}
+                                                            onEdit={(msg) => { setEditingMessageId(msg.id); setEditInput(msg.content); }}
+                                                            onOpenMenu={(e) => setContextMenu({ x: e.pageX, y: e.pageY, message: m })}
+                                                            onReactionOpen={(e) => {
+                                                                e?.stopPropagation?.();
+                                                                setMediaPicker({ mode: 'emoji', purpose: 'reaction', messageId: m.id, anchor: getPickerAnchor(e) });
+                                                            }}
+                                                        />
+                                                    )}
+                                                    {m.replyTo && (
+                                                        <MessageReply
+                                                            message={resolveReplyMessage(m)}
+                                                            mention={m.replyTo.mention}
+                                                            onClick={() => jumpToMessage(m.replyTo.id)}
+                                                        />
+                                                    )}
+                                                    <div className="flex min-w-0">
+                                                        <img
+                                                            src={getProxyUrl(m.author.avatar)}
+                                                            className="w-9 h-9 shrink-0 mx-1 my-0.5 rounded-full object-cover bg-[var(--app-surface-container-highest)]"
+                                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setUserPopout({ x: e.pageX, y: e.pageY, userId: m.author.id }); }}
+                                                            alt=""
+                                                        />
+                                                        <div className="min-w-0 flex-1 overflow-hidden pr-4">
+                                                            <div className="flex items-baseline gap-1">
+                                                                <MessageAuthorName 
+                                                                    name={m.author.displayName} 
+                                                                    color={nameColor} 
+                                                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setUserPopout({ x: e.pageX, y: e.pageY, userId: m.author.id }); }} 
+                                                                />
+                                                                <span className="text-sm font-medium text-[var(--app-outline)]">{formatTimestamp(m.timestamp)}</span>
+                                                            </div>
+                                                            <div className="min-w-0 flex flex-col gap-1 text-base leading-[1.375rem]">
+                                                                {editingMessageId === m.id ? (
+                                                                    <div className="app-edit-box">
+                                                                        <md-outlined-text-field
+                                                                            class="app-edit-field m3-text-field"
+                                                                            type="textarea"
+                                                                            rows={editInput.split('\n').length || 1}
+                                                                            value={editInput}
+                                                                            onInput={(e) => setEditInput(e.currentTarget.value)}
+                                                                            onKeyDown={(e) => {
+                                                                                if (e.key === 'Escape') {
+                                                                                    e.preventDefault();
+                                                                                    setEditingMessageId(null);
+                                                                                    return;
+                                                                                }
+                                                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                                                    e.preventDefault();
+                                                                                    socket.emit('editMessage', { channelId: paramChannelId, messageId: m.id, content: editInput });
+                                                                                    setEditingMessageId(null);
+                                                                                }
+                                                                            }}
+                                                                            autoFocus
+                                                                        />
+                                                                        <div className="app-edit-hint">
+                                                                            <span>Escでキャンセル</span>
+                                                                            <span aria-hidden="true">・</span>
+                                                                            <span>Enterで保存</span>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <MessageContent content={m.content} />
+                                                                )}
+                                                            </div>
+                                                            {m.attachments?.length > 0 && (
+                                                                <div className="mt-2 flex flex-wrap gap-2">
+                                                                    {m.attachments.map((att, idx) => (
+                                                                        <img
+                                                                            key={idx}
+                                                                            src={getProxyUrl(att.url)}
+                                                                            className="max-h-[300px] max-w-[min(400px,100%)] cursor-pointer rounded-[var(--app-radius-md)]"
+                                                                            onClick={() => setPreviewData({ isOpen: true, images: m.attachments.map((a) => a.url), index: idx })}
+                                                                            alt=""
+                                                                        />
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                            {m.stickers?.length > 0 && (
+                                                                <div className="app-message-stickers">
+                                                                    {m.stickers.map((sticker) => (
+                                                                        <button
+                                                                            type="button"
+                                                                            key={sticker.id}
+                                                                            className="app-message-sticker"
+                                                                            title={sticker.name}
+                                                                            onClick={(e) => {
+                                                                                e.preventDefault();
+                                                                                e.stopPropagation();
+                                                                                setStickerPreview({ sticker, anchor: e.currentTarget, key: `${sticker.id}-${performance.now()}` });
+                                                                            }}
+                                                                        >
+                                                                            {isLottieSticker(sticker) ? (
+                                                                                <div className="app-sticker-lottie">{sticker.name}</div>
+                                                                            ) : (
+                                                                                <img src={getProxyUrl(getStickerUrl(sticker))} alt={sticker.name} />
+                                                                            )}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                            {m.embeds?.map((e, idx) => <MessageEmbed key={idx} embed={e} />)}
+                                                            <MessageComponents
+                                                                components={m.components}
+                                                                channelId={paramChannelId}
+                                                                messageId={m.id}
+                                                                guildId={paramGuildId}
+                                                                socket={socket}
+                                                                onModal={setActiveModal}
+                                                            />
+                                                            <ReactionList reactions={m.reactions} onReactionClick={(emoji, add) => {
+                                                                const identifier = emoji.id ? `${emoji.name}:${emoji.id}` : (emoji.name || emoji);
+                                                                socket.emit(add ? 'addReaction' : 'removeReaction', { channelId: paramChannelId, messageId: m.id, emoji: identifier });
+                                                            }} />
+                                                        </div>
+                                                    </div>
+                                                </article>
+                                            );
+                                        })}
+                                        {uploadDraft && <DraftUploadMessage draft={uploadDraft} user={user} />}
+                                        <div ref={messagesEndRef} className="h-6 shrink-0" />
+                                    </div>
+                                    <ChatInput
+                                        channelName={currentChannel?.name}
+                                        disabled={!paramChannelId}
+                                        replyingTo={replyingTo}
+                                        onSend={(t, files) => {
+                                            return new Promise((resolve) => {
+                                                socket.timeout(45000).emit('sendMessage', {
+                                                    channelId: paramChannelId,
+                                                    content: t.trim(),
+                                                    files,
+                                                    reply: replyingTo ? { messageId: replyingTo.id, mention: replyingTo.mention } : null
+                                                }, (err, result) => {
+                                                    if (err) {
+                                                        resolve({ ok: false, error: 'メッセージ送信がタイムアウトしました' });
+                                                        return;
+                                                    }
+                                                    if (result?.ok !== false) setReplyingTo(null);
+                                                    resolve(result);
+                                                });
+                                            });
+                                        }}
+                                        onCancelReply={() => setReplyingTo(null)}
+                                        onToggleMention={() => setReplyingTo((reply) => reply ? { ...reply, mention: !reply.mention } : reply)}
+                                        onEmojiClick={(e) => {
+                                            e?.stopPropagation?.();
+                                            setMediaPicker({ mode: 'emoji', purpose: 'insert', anchor: getPickerAnchor(e) });
+                                        }}
+                                        onStickerClick={(e) => {
+                                            e?.stopPropagation?.();
+                                            setMediaPicker({ mode: 'sticker', purpose: 'sticker', anchor: getPickerAnchor(e) });
+                                        }}
+                                        onDraftChange={setUploadDraft}
+                                        slashCommands={slashCommands}
+                                        onSlashCommand={(cmd, options) => {
+                                            const commandContent = `</${cmd.name}:${cmd.id}>`;
+                                            socket.timeout(45000).emit('sendMessage', {
+                                                channelId: paramChannelId,
+                                                content: commandContent,
+                                                reply: replyingTo ? { messageId: replyingTo.id, mention: replyingTo.mention } : null
+                                            }, (err, result) => {
+                                                if (err) return;
+                                                if (result?.ok !== false) setReplyingTo(null);
+                                            });
+                                        }}
+                                        socket={socket}
+                                    />
+                                </>
+                            ) : (
+                                <div className="grid flex-1 place-items-center px-6 text-center">
+                                    <div className="max-w-sm">
+                                        <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-[var(--app-radius-xl)] bg-[var(--app-surface-container-high)] text-[var(--app-outline)]">
+                                            <FaHashtag size={28} />
+                                        </div>
+                                        <h2 className="mb-2 text-xl font-semibold">チャンネルを選択</h2>
+                                        <p className="text-sm text-[var(--app-on-surface-variant)]">左のサイドバーからテキストチャンネルまたはDMを選択してください。</p>
+                                    </div>
+                                </div>
+                            )}
+                        </main>
                     )}
                 </div>
             </div>
+
+            {settingsOpen && <AppSettings user={user} onClose={() => setSettingsOpen(false)} />}
+            {activeModal && (
+                <ModalDialog
+                    modal={activeModal}
+                    onClose={() => setActiveModal(null)}
+                    onSubmit={(customId, values) => {
+                        socket?.emit('interaction', {
+                            type: 'modal',
+                            customId,
+                            values,
+                            channelId: paramChannelId,
+                            guildId: paramGuildId,
+                        });
+                        setActiveModal(null);
+                    }}
+                />
+            )}
+            <StickerPreviewMenu
+                key={stickerPreview?.key || 'sticker-preview'}
+                preview={stickerPreview}
+                guild={stickerPreviewGuild}
+                onClose={(key) => setStickerPreview((current) => (!key || current?.key === key ? null : current))}
+            />
             {previewData.isOpen && <ImageViewer images={previewData.images} initialIndex={previewData.index} onClose={() => setPreviewData({ ...previewData, isOpen: false })} />}
-            {userPopout && <UserPopout userId={userPopout.userId} guildId={paramGuildId} x={userPopout.x} y={userPopout.y} socket={socket} onClose={()=>setUserPopout(null)} />}
+            {userPopout && <UserPopout userId={userPopout.userId} guildId={paramGuildId} x={userPopout.x} y={userPopout.y} socket={socket} onClose={() => setUserPopout(null)} />}
+            {mediaPicker && (
+                <div className="app-floating-picker" style={pickerStyle}>
+                    <MediaPicker
+                        mode={mediaPicker.mode}
+                        currentGuild={currentGuildData}
+                        guildEmojis={guildEmojis}
+                        guildStickers={guildStickers}
+                        onClose={() => setMediaPicker(null)}
+                        onEmoji={(emoji) => {
+                            if (mediaPicker.purpose === 'reaction') {
+                                const identifier = emoji.id ? `${emoji.name}:${emoji.id}` : emoji;
+                                socket.emit('addReaction', { channelId: paramChannelId, messageId: mediaPicker.messageId, emoji: identifier });
+                                return;
+                            }
+                            const value = emoji.id ? `<:${emoji.name}:${emoji.id}>` : emoji;
+                            window.dispatchEvent(new CustomEvent('insert-emoji', { detail: value }));
+                        }}
+                        onSticker={(sticker) => {
+                            socket.timeout(45000).emit('sendMessage', {
+                                channelId: paramChannelId,
+                                content: '',
+                                files: [],
+                                stickers: [sticker.id],
+                                reply: replyingTo ? { messageId: replyingTo.id, mention: replyingTo.mention } : null
+                            }, () => {
+                                setReplyingTo(null);
+                            });
+                        }}
+                    />
+                </div>
+            )}
             {contextMenu && <MessageContextMenu x={contextMenu.x} y={contextMenu.y} message={contextMenu.message} currentUser={user} onClose={() => setContextMenu(null)} onReaction={(id, emo, add) => {
                 const identifier = emo.id ? `${emo.name}:${emo.id}` : (emo.name || emo);
                 socket.emit(add ? 'addReaction' : 'removeReaction', { channelId: paramChannelId, messageId: id, emoji: identifier });
-            }} onDelete={(id) => socket.emit('deleteMessage', { channelId: paramChannelId, messageId: id })} />}
+            }} onReactionOpen={(e, messageId) => {
+                e?.stopPropagation?.();
+                setMediaPicker({ mode: 'emoji', purpose: 'reaction', messageId, anchor: getPickerAnchor(e) });
+            }} onReply={startReply} onEdit={(msg) => { setEditingMessageId(msg.id); setEditInput(msg.content); }} onDelete={(id) => socket.emit('deleteMessage', { channelId: paramChannelId, messageId: id })} />}
         </div>
     );
 }

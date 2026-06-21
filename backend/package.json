@@ -1,5 +1,5 @@
 {
-  "name": "backend",
+  "name": "discordwebtokenclient-backend",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
@@ -9,7 +9,6 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "@discordjs/opus": "^0.10.0",

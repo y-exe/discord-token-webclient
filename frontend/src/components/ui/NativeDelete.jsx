@@ -1,11 +1,10 @@
 "use client";
 
-import { cn } from "../../lib/utils"; // パスを調整
+import { cn } from "../../lib/utils";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { Check, Trash2, X } from "lucide-react";
 import { useState } from "react";
 
-// Buttonコンポーネントのダミー実装（shadcn/uiがないため）
 const Button = ({ variant, size, className, ...props }) => {
     const baseStyle = "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background";
     const variantStyle = variant === 'destructive' 

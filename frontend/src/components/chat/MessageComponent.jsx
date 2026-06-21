@@ -6,31 +6,25 @@ const MessageComponent = ({ components, onClick }) => {
       {components.map((row, i) => (
         <div key={i} className="flex flex-wrap gap-2">
           {row.components.map((comp, j) => {
-            // Button (Type 2)
             if (comp.type === 2) {
               const isLink = comp.style === 5;
-              const baseClass = "px-4 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2";
-              const styleClass = isLink 
-                ? "bg-discord-element hover:bg-discord-hover text-discord-text" // Link style
-                : "bg-discord-primary hover:bg-discord-primary/80 text-white"; // Primary style (simplified)
 
               if (isLink) {
                 return (
-                  <a key={j} href={comp.url} target="_blank" rel="noreferrer" className={baseClass + " " + styleClass}>
+                  <md-outlined-button key={j} type="button" onClick={() => window.open(comp.url, '_blank', 'noreferrer')}>
                     {comp.label}
-                  </a>
+                  </md-outlined-button>
                 );
               }
               
               return (
-                <button 
+                <md-filled-tonal-button
                   key={j} 
                   onClick={(e) => { e.stopPropagation(); onClick(comp.customId); }}
                   disabled={comp.disabled}
-                  className={`${baseClass} ${styleClass} ${comp.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {comp.label}
-                </button>
+                </md-filled-tonal-button>
               );
             }
             return null; // Other components (Select Menu etc) omitted for now

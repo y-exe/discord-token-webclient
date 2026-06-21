@@ -8,8 +8,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        google: ['"Google Sans"', 'sans-serif'],
-        ggsans: ['"gg sans"', 'sans-serif'],
+        google: ['Inter', 'sans-serif'],
+        ggsans: ['Inter', 'sans-serif'],
+        inter: ['Inter', 'sans-serif'],
       },
       colors: {
         'discord-bg': '#08080a',

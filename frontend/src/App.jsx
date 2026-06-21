@@ -4,13 +4,11 @@ import { io } from 'socket.io-client';
 import { ThemeProvider } from 'next-themes'; 
 import { API_URL } from './utils/helpers';
 
-// Lazy loading components
 const Login = lazy(() => import('./components/auth/Login'));
 const Terms = lazy(() => import('./components/legal/Terms'));
 const Privacy = lazy(() => import('./components/legal/Privacy'));
 const DiscordClient = lazy(() => import('./components/DiscordClient'));
 
-// Cookie操作用ヘルパー
 const setCookie = (name, value, days) => {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
   document.cookie = name + '=' + encodeURIComponent(JSON.stringify(value)) + '; expires=' + expires + '; path=/';
@@ -76,6 +74,8 @@ const RequireAuth = ({ children }) => {
                 globalSocket.emit('login', { token: session.token, isBot: session.isBot });
             }
         }
+
+        window.socket = globalSocket;
     }, [navigate]);
 
     if (!isReady || !globalSocket) {

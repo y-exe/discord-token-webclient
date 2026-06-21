@@ -9,7 +9,6 @@ import Footer from './Footer';
 import { NativeDelete } from '../ui/NativeDelete';
 import Head from '../seo/Head';
 
-// Cookie操作用ヘルパー
 const setCookie = (name, value, days) => {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
   document.cookie = name + '=' + encodeURIComponent(JSON.stringify(value)) + '; expires=' + expires + '; path=/';
@@ -63,13 +62,12 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-white dark:bg-black text-gray-900 dark:text-gray-100 flex flex-col font-google light-scrollbar transition-colors duration-300 relative">
+    <div className="home-screen min-h-screen w-full bg-white dark:bg-black text-gray-900 dark:text-gray-100 flex flex-col font-google light-scrollbar transition-colors duration-300 relative">
       <Head 
         title="ログイン" 
         description="DiscordWebTokenClient ブラウザ上で動作する高速・軽量なDiscordクライアント トークンを使用してログインし、Bot,Userともに操作が可能です。"
         path="/login"
       />
-      {/* JSON-LD */}
       <script type="application/ld+json">
         {JSON.stringify({
           "@context": "https://schema.org",

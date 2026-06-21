@@ -10,15 +10,15 @@ const ReactionList = ({ reactions, onReactionClick }) => {
       return <img src={getProxyUrl(emoji.url)} className="w-full h-full object-contain" alt={emoji.name} />;
     }
     return (
-      <span 
+      <span
         className="flex items-center justify-center w-full h-full"
-        dangerouslySetInnerHTML={{ 
+        dangerouslySetInnerHTML={{
           __html: twemoji.parse(emoji.name, {
             folder: 'svg',
             ext: '.svg',
             base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/'
-          }) 
-        }} 
+          })
+        }}
       />
     );
   };
@@ -28,18 +28,18 @@ const ReactionList = ({ reactions, onReactionClick }) => {
       {reactions.map((r) => {
         const reactionKey = r.emoji.id || r.emoji.name;
         return (
-          <button 
-            key={reactionKey} 
-            onClick={(e) => { 
-              e.preventDefault(); e.stopPropagation(); 
+          <button
+            key={reactionKey}
+            onClick={(e) => {
+              e.preventDefault(); e.stopPropagation();
               const emojiData = r.emoji.id ? { name: r.emoji.name, id: r.emoji.id } : r.emoji.name;
-              onReactionClick(emojiData, !r.me); 
+              onReactionClick(emojiData, !r.me);
             }}
             className={`
               flex items-center gap-1.5 px-2 py-1 rounded-[8px] border min-h-[32px]
               transition-all select-none cursor-pointer active:scale-95 outline-none
-              ${r.me 
-                ? 'bg-[#1a1d40] border-[#5764f2] hover:bg-[#252a5a]' 
+              ${r.me
+                ? 'bg-[#1a1d40] border-[#5764f2] hover:bg-[#252a5a]'
                 : 'bg-[#19191c] border-transparent hover:bg-[#2a2a2e] hover:border-[#313235]'
               }
             `}

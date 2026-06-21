@@ -4,7 +4,6 @@ import { cn } from "../../lib/utils";
 
 const InteractiveHoverButton = React.forwardRef(({ text = "Button", className, ...props }, ref) => {
   return (
-    // ★ ここに group を追加
     <button
       ref={ref}
       className={cn(

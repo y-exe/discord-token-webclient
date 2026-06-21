@@ -2,7 +2,7 @@
 }
 
 .discord-client-font {
-  font-family: var(--font-ggsans);
+  font-family: Inter, sans-serif;
 }
 
 @keyframes pulse-slow {
