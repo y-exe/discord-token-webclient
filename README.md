@@ -1,7 +1,32 @@
-# Discord Web Token Client
+<div align="center">
+<h1>
+  Discord Web Token Client
+  
+  [![Discord Web Token Client](https://img.shields.io/badge/Discord%20Web%20Token%20Client-Web%20Client-5865F2?style=flat-square&logo=discord&logoColor=white)](.)
+  [![Frontend](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB?style=flat-square&logo=react&logoColor=white)](./frontend)
+  [![Backend](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-339933?style=flat-square&logo=node.js&logoColor=white)](./backend)
+  [![License](https://img.shields.io/badge/License-AGPL--3.0-green.svg?style=flat-square)](LICENSE)
+</h1>
+Socket.io と discord.js-selfbot を使用した、WEB 上のオリジナル Discord クライアント!<br>
+Bot トークンおよびユーザー個人トークンにも一応対応しています。<br>
+<br>
 
-Socket.io と discord.js を使用した、ブラウザで動作する軽量 Discord クライアントです。
-Bot トークンおよびユーザー個人トークン（Selfbot）の両方に対応しています。
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="public/1.png" alt="ログイン画面">
+      <br>
+      <sub>ログイン画面</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="public/2.png" alt="アプリ画面(Web)">
+      <br>
+      <sub>アプリ画面(Web)</sub>
+    </td>
+  </tr>
+</table>
+</div>
+<br/>
 
 ## なんのためにつくった...?
 
@@ -30,7 +55,6 @@ Bot トークンおよびユーザー個人トークン（Selfbot）の両方に
 ## 免責事項
 
 このプロジェクトにはセルフボットを利用しております。
-
 > [!WARNING]
 > 本プロジェクトでユーザー名義のトークンを使用することは、Discord 公式のサービス利用規約に違反する可能性があります。
 > 本サービスの利用によりアカウントが停止、削除、または制限された場合でも、開発者は一切の責任を負いません。
