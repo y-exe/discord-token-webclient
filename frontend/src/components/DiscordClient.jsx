@@ -52,7 +52,7 @@ const DraftUploadMessage = ({ draft, user }) => {
                         <span className="app-message-time">{statusText}</span>
                     </div>
                     <div className="app-message-content">
-                        {draft.content && <MessageContent content={draft.content} />}
+                        {draft.content && <MessageContent content={draft.content} channels={allFlattenedChannels} guildRoles={guildRoles} guildId={paramGuildId} navigate={navigate} guilds={guilds} />}
                         {draft.files?.map((file) => (
                             <div key={file.id} className="app-draft-file">
                                 <div className="app-draft-upload-line">
@@ -156,6 +156,7 @@ export default function DiscordClient({ socket, user }) {
     const [messages, setMessages] = useState([]);
     const [guildEmojis, setGuildEmojis] = useState([]);
     const [guildStickers, setGuildStickers] = useState([]);
+    const [guildRoles, setGuildRoles] = useState([]);
     const [showMobileChat, setShowMobileChat] = useState(!!paramChannelId);
 
     const [replyingTo, setReplyingTo] = useState(null);
@@ -218,9 +219,11 @@ export default function DiscordClient({ socket, user }) {
         if (paramGuildId !== '@me') {
             socket.emit('getGuildEmojis', paramGuildId, setGuildEmojis);
             socket.emit('getGuildStickers', paramGuildId, setGuildStickers);
+            socket.emit('getGuildRoles', paramGuildId, setGuildRoles);
         } else {
             setGuildEmojis([]);
             setGuildStickers([]);
+            setGuildRoles([]);
         }
 
     }, [socket, paramGuildId]);
@@ -484,7 +487,7 @@ export default function DiscordClient({ socket, user }) {
                                                                         </div>
                                                                     </div>
                                                                 ) : (
-                                                                    <MessageContent content={m.content} />
+                                                                    <MessageContent content={m.content} channels={allFlattenedChannels} guildRoles={guildRoles} guildId={paramGuildId} navigate={navigate} guilds={guilds} />
                                                                 )}
                                                             </div>
                                                             {m.attachments?.length > 0 && (
@@ -523,7 +526,7 @@ export default function DiscordClient({ socket, user }) {
                                                                     ))}
                                                                 </div>
                                                             )}
-                                                            {m.embeds?.map((e, idx) => <MessageEmbed key={idx} embed={e} />)}
+                                                            {m.embeds?.map((e, idx) => <MessageEmbed key={idx} embed={e} channels={allFlattenedChannels} guildRoles={guildRoles} guildId={paramGuildId} navigate={navigate} />)}
                                                             <MessageComponents
                                                                 components={m.components}
                                                                 channelId={paramChannelId}
@@ -534,7 +537,54 @@ export default function DiscordClient({ socket, user }) {
                                                             />
                                                             <ReactionList reactions={m.reactions} onReactionClick={(emoji, add) => {
                                                                 const identifier = emoji.id ? `${emoji.name}:${emoji.id}` : (emoji.name || emoji);
-                                                                socket.emit(add ? 'addReaction' : 'removeReaction', { channelId: paramChannelId, messageId: m.id, emoji: identifier });
+                                                                const emojiKey = emoji.id || (emoji.name || emoji);
+                                                                setMessages((prev) => prev.map((msg) => {
+                                                                    if (msg.id !== m.id) return msg;
+                                                                    const reactions = [...(msg.reactions || [])];
+                                                                    const idx = reactions.findIndex((r) => (r.emoji.id || r.emoji.name) === emojiKey);
+                                                                    if (idx >= 0) {
+                                                                        const existing = reactions[idx];
+                                                                        if (add) {
+                                                                            reactions[idx] = { ...existing, count: existing.count + 1, me: true };
+                                                                        } else {
+                                                                            if (existing.count <= 1) {
+                                                                                reactions.splice(idx, 1);
+                                                                            } else {
+                                                                                reactions[idx] = { ...existing, count: existing.count - 1, me: false };
+                                                                            }
+                                                                        }
+                                                                    } else if (add) {
+                                                                        reactions.push({
+                                                                            emoji: emoji.id ? { name: emoji.name, id: emoji.id } : { name: emoji.name || emoji },
+                                                                            count: 1,
+                                                                            me: true
+                                                                        });
+                                                                    }
+                                                                    return { ...msg, reactions };
+                                                                }));
+                                                                const eventName = add ? 'addReaction' : 'removeReaction';
+                                                                socket.emit(eventName, { channelId: paramChannelId, messageId: m.id, emoji: identifier }, (res) => {
+                                                                    if (res && res.ok === false) {
+                                                                        setMessages((prev) => prev.map((msg) => {
+                                                                            if (msg.id !== m.id) return msg;
+                                                                            const reactions = [...(msg.reactions || [])];
+                                                                            const idx = reactions.findIndex((r) => (r.emoji.id || r.emoji.name) === emojiKey);
+                                                                            if (idx >= 0) {
+                                                                                const existing = reactions[idx];
+                                                                                if (add) {
+                                                                                    if (existing.count <= 1) {
+                                                                                        reactions.splice(idx, 1);
+                                                                                    } else {
+                                                                                        reactions[idx] = { ...existing, count: existing.count - 1, me: false };
+                                                                                    }
+                                                                                } else {
+                                                                                    reactions[idx] = { ...existing, count: existing.count + 1, me: true };
+                                                                                }
+                                                                            }
+                                                                            return { ...msg, reactions };
+                                                                        }));
+                                                                    }
+                                                                });
                                                             }} />
                                                         </div>
                                                     </div>

@@ -323,7 +323,6 @@ io.on('connection', (socket) => {
 
             client.on('messageCreate', async (m) => {
                 if (m.channelId === socket.currentChannelId) {
-                    await new Promise(r => setTimeout(r, 300));
                     let raw = null;
                     try {
                         const token = client.token;
@@ -336,6 +335,19 @@ io.on('connection', (socket) => {
                             const msgs = await response.json();
                             if (Array.isArray(msgs)) {
                                 raw = msgs.find(rm => rm.id === m.id) || null;
+                                // If not found in batch, try again after a short delay
+                                if (!raw) {
+                                    await new Promise(r => setTimeout(r, 500));
+                                    const retry = await fetch(`https://discord.com/api/v10/channels/${m.channelId}/messages?limit=100`, {
+                                        headers: { 'Authorization': authHeader }
+                                    });
+                                    if (retry.ok) {
+                                        const retryMsgs = await retry.json();
+                                        if (Array.isArray(retryMsgs)) {
+                                            raw = retryMsgs.find(rm => rm.id === m.id) || null;
+                                        }
+                                    }
+                                }
                             }
                         }
                     } catch (e) { }
@@ -345,7 +357,6 @@ io.on('connection', (socket) => {
             });
             client.on('messageUpdate', async (old, m) => {
                 if (m.channelId === socket.currentChannelId) {
-                    await new Promise(r => setTimeout(r, 300));
                     let raw = null;
                     try {
                         const token = client.token;
@@ -466,6 +477,22 @@ io.on('connection', (socket) => {
             if (guild.stickers?.fetch) await guild.stickers.fetch();
         } catch (e) { }
         cb(guild.stickers?.cache?.map(formatSticker).filter(Boolean) || []);
+    });
+
+    socket.on('getGuildRoles', async (guildId, cb) => {
+        const client = sessions.get(socket.id);
+        if (!client || guildId === '@me') return cb([]);
+        const guild = client.guilds.cache.get(guildId);
+        if (!guild) return cb([]);
+        try {
+            if (guild.roles?.fetch) await guild.roles.fetch();
+        } catch (e) { }
+        cb(guild.roles?.cache?.map(r => ({
+            id: r.id,
+            name: r.name,
+            color: r.hexColor,
+            position: r.position
+        })).filter(r => r.id !== guild.id) || []);
     });
 
     socket.on('getMessages', async (data, cb) => {
@@ -619,6 +646,44 @@ io.on('connection', (socket) => {
             cb(data);
         } catch (e) {
             cb({ error: e.message });
+        }
+    });
+
+    socket.on('addReaction', async (data, cb = () => {}) => {
+        const client = sessions.get(socket.id);
+        if (!client) return cb({ ok: false, error: 'Not logged in' });
+        try {
+            const token = client.token;
+            const isBot = !!client.user?.bot;
+            const authHeader = isBot ? `Bot ${token}` : token;
+            const emojiParam = encodeURIComponent(data.emoji);
+            const response = await fetch(
+                `https://discord.com/api/v10/channels/${data.channelId}/messages/${data.messageId}/reactions/${emojiParam}/@me`,
+                { method: 'PUT', headers: { 'Authorization': authHeader } }
+            );
+            cb({ ok: response.ok || response.status === 204 });
+        } catch (e) {
+            console.error('AddReaction Error:', e);
+            cb({ ok: false, error: e.message });
+        }
+    });
+
+    socket.on('removeReaction', async (data, cb = () => {}) => {
+        const client = sessions.get(socket.id);
+        if (!client) return cb({ ok: false, error: 'Not logged in' });
+        try {
+            const token = client.token;
+            const isBot = !!client.user?.bot;
+            const authHeader = isBot ? `Bot ${token}` : token;
+            const emojiParam = encodeURIComponent(data.emoji);
+            const response = await fetch(
+                `https://discord.com/api/v10/channels/${data.channelId}/messages/${data.messageId}/reactions/${emojiParam}/@me`,
+                { method: 'DELETE', headers: { 'Authorization': authHeader } }
+            );
+            cb({ ok: response.ok || response.status === 204 });
+        } catch (e) {
+            console.error('RemoveReaction Error:', e);
+            cb({ ok: false, error: e.message });
         }
     });
 
