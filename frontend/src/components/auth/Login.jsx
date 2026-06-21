@@ -163,7 +163,7 @@ export default function Login() {
                   <div className="flex gap-3 font-google"><span className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 dark:bg-zinc-800 text-xs font-bold shrink-0">2</span><p><strong>Network</strong>（ネットワーク）タブを選択し、フィルターに「<strong>/api</strong>」と入力します。</p></div>
                   <div className="flex gap-3 font-google"><span className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 dark:bg-zinc-800 text-xs font-bold shrink-0">3</span><p>ページを更新するか何か操作を行い、表示された通信の<strong>Headers</strong>内にある「<strong>authorization</strong>」の値があなたのトークンです。</p></div>
                   <div className="mt-6 flex justify-center bg-gray-50 dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 p-2 shadow-inner overflow-hidden">
-                      <img src="https://paicha.cloud/uploader/new/uploads/2025-09-16/token.webp" alt="Discordのauthorizationヘッダーからトークンを確認する方法" width="600" height="300" className="rounded-lg max-h-[50vh] w-auto object-contain"/>
+                      <img src="/token.webp" alt="Discordのauthorizationヘッダーからトークンを確認する方法" width="600" height="300" className="rounded-lg max-h-[50vh] w-auto object-contain"/>
                   </div>
               </div>
             </motion.div>
